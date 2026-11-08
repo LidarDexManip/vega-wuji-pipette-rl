@@ -1,0 +1,6 @@
+stage0 voc 1 {'n': 64, 'reach_end': 39, 'pipette_seated': 30, 'tube_seated': 27, 'press_ok_of_press_starts': '0/64'}
+stage0 voc 0.5 {'n': 64, 'reach_end': 17, 'pipette_seated': 10, 'tube_seated': 2, 'press_ok_of_press_starts': '0/64'}
+stage0 voc 0 {'n': 64, 'reach_end': 0, 'pipette_seated': 0, 'tube_seated': 0, 'press_ok_of_press_starts': '0/64'}
+stage0_noprior_evalonly voc 1 {'n': 64, 'reach_end': 39, 'pipette_seated': 30, 'tube_seated': 36, 'press_ok_of_press_starts': '0/64'}
+stage0_noprior_evalonly voc 0.5 {'n': 64, 'reach_end': 31, 'pipette_seated': 19, 'tube_seated': 16, 'press_ok_of_press_starts': '0/64'}
+stage0_noprior_evalonly voc 0 {'n': 64, 'reach_end': 0, 'pipette_seated': 0, 'tube_seated': 0, 'press_ok_of_press_starts': '0/64'}

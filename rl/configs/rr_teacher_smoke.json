@@ -1,0 +1,5 @@
+{"task": "../task_E1", "out": "../runs/rr_teacher_smoke", "num_envs": 1024, "max_env_steps": 3e7, "wall_hours": 0.33, "ckpt_minutes": 10, "latest_minutes": 5,
+ "dr": "dr_rr1.json", "init_std": 0.1, "reward_scale": 0.01,
+ "group_scale": {"FR": 0.1, "AR": 0.04, "FL": 0.05, "AL": 0.04},
+ "extras": {"real_cmd": true, "ema_alpha": 0.5,
+            "w": {"contact_set": 0.5, "contact_graph": 0.5, "wrench_support": 0.5, "free_finger_acc": 1.0, "action_rate": 0.5, "elbow_height": 50.0, "joint_margin": 1.0}}}

@@ -1,0 +1,52 @@
+"""Record RL policy rollouts for videos (layer: RL env, MuJoCo Warp physics; deterministic actor mean). All worlds start at frame 0 with fixed
+per-world hole pair and placement offsets; the env's DR (config) is on. Per world: qpos at every control step, the task outcome (reach end,
+tube / pipette seated at the end, tube end lateral / height / tilt vs its seated reference), and the case spec. Writes OUT/world_<i>.npz + OUT/summary.json.
+  python record_rollouts.py CONFIG.json CKPT OUT --worlds SPEC.json
+SPEC.json: list of {"pair": [pick, place], "rack": [dx_mm, dy_mm, dyaw_deg], "stand": [dx_mm, dy_mm, dyaw_deg]} (pair must be in the config's hole_pairs)"""
+import argparse, json, math, os, sys
+from pathlib import Path
+from types import SimpleNamespace
+import numpy as np, torch
+HERE = Path(__file__).resolve().parent; ROOT = Path(os.environ.get('G1PS_ROOT', str(Path(__file__).resolve().parents[1]/'deps_from_g1ps')))
+sys.path[:0] = [str(HERE), str(ROOT/'tools/rl')]
+import vega_res_env as E
+import gpu_train as GT
+p = argparse.ArgumentParser(); p.add_argument('config', type=Path); p.add_argument('ckpt', type=Path); p.add_argument('out', type=Path); p.add_argument('--worlds', type=Path, required=True)
+p.add_argument('--zero', action='store_true', help='zero residual (no policy), same perturbations'); p.add_argument('--no-dr', action='store_true', help='physical DR off (holders / hole pairs as specified)')
+a0 = p.parse_args(); C = json.loads(a0.config.read_text()); rel = lambda x: (x if Path(x).is_absolute() else (a0.config.parent/x)).resolve()
+task = rel(C['task']); dr = json.loads(rel(C['dr']).read_text()) if isinstance(C.get('dr'), str) else C.get('dr')
+if a0.no_dr: dr = None
+S = json.loads(a0.worlds.read_text()); N = len(S); r = np.load(task/'reference.npz'); t = r['timestamps']; nfr = len(t)
+kw = dict(dr=dr, extras=C.get('extras', {}), reward_scale=C.get('reward_scale', .01))
+for k in ('arm_scale', 'finger_scale', 'group_scale'):
+    if C.get(k) is not None: kw[k] = C[k]
+env = E.BimanualGpuEnv(task, N, seed=321, nconmax=C.get('nconmax', 200), njmax=C.get('njmax', 1600), naconmax_per_world=C.get('naconmax_per_world', 400), terminate=False, auto_reset=False, **kw)
+a = SimpleNamespace(steps_per_env=C.get('steps_per_env', 24), lr=3e-4, init_std=C.get('init_std', .1), no_value_clip=True, deployable=False)
+if a0.zero: pol = lambda o: torch.zeros(N, env.nu, device=env.device)
+else: venv, runner = GT.make_runner(env, a, None); runner.load(str(a0.ckpt), map_location=env.device); pol = runner.get_inference_policy(device=env.device)
+dev = env.device; pairs = [tuple(x) for x in C['extras']['holder']['hole_pairs']]
+env.x_hole_fixed = torch.as_tensor([pairs.index(tuple(s['pair'])) for s in S], device=dev)
+fx = lambda key: (torch.as_tensor([[s[key][0]*1e-3, s[key][1]*1e-3] for s in S], dtype=torch.float32, device=dev), torch.as_tensor([math.radians(s[key][2]) for s in S], dtype=torch.float32, device=dev))
+env.x_hold_fixed = {'rack': fx('rack'), 'stand': fx('stand')}
+env.reset_envs(torch.ones(N, dtype=torch.bool, device=dev), frames=torch.zeros(N, dtype=torch.long, device=dev)); env._launch(env.g_kin); env.obs = env._observe()
+Q, T, U = [env.qpos.cpu().numpy().copy()], [float(t[0])], [env.ctrl.cpu().numpy().copy()]; first_fail = torch.full((N,), -1., device=dev)
+for i in range((nfr-1)//env.frame_step):
+    with torch.inference_mode(): act = pol(env.get_observations()).clamp(-1, 1); _, _, _, ex = env.step(act)
+    k = env.frame.clamp(max=nfr-1); f_any = (ex['reasons'] > 0).any(1); nw = f_any & (first_fail < 0); first_fail[nw] = t[0]+env.frame[nw].float()*.01
+    Q.append(env.qpos.cpu().numpy().copy()); T.append(float(t[int(k[0])])); U.append(env.ctrl.cpu().numpy().copy())
+Q = np.stack(Q, 1); T = np.array(T); U = np.stack(U, 1)
+kend = torch.full((N,), nfr-1, device=dev, dtype=torch.long); out = []; a0.out.mkdir(parents=True, exist_ok=True)
+for s_, name in (('left', 'tube'), ('right', 'pipette')):
+    _, O = env._poses(s_); Or = E.X.ref_o(env, s_, kend)
+    pe = (O[:, :3, 3]-Or[:, :3, 3]).norm(dim=-1); ae = torch.arccos((O[:, :3, 2]*Or[:, :3, 2]).sum(-1).clamp(-1, 1))
+    for w in range(N):
+        if len(out) <= w: out.append({})
+        out[w][f'{name}_end_err_mm'] = round(float(pe[w])*1e3, 2); out[w][f'{name}_end_tilt_deg'] = round(math.degrees(float(ae[w])), 2)
+        if name == 'tube': out[w]['tube_end_lat_mm'] = round(float((O[w, :2, 3]-Or[w, :2, 3]).norm())*1e3, 2); out[w]['tube_end_dz_mm'] = round(float(O[w, 2, 3]-Or[w, 2, 3])*1e3, 2)
+for w in range(N):
+    ok = bool(first_fail[w] < 0); o = out[w]
+    o.update(spec=S[w], reach_end=ok, first_fail_s=round(float(first_fail[w]), 2), tube_seated=ok and o['tube_end_err_mm'] <= 5 and o['tube_end_tilt_deg'] <= 3,
+             pipette_seated=ok and o['pipette_end_err_mm'] <= 5 and o['pipette_end_tilt_deg'] <= 3)
+    np.savez_compressed(a0.out/f'world_{w}.npz', qpos=Q[w], time=T, ctrl=U[w])
+(a0.out/'summary.json').write_text(json.dumps({'layer': 'RL env rollouts (MuJoCo Warp physics), '+('ZERO residual' if a0.zero else 'policy deterministic mean')+(', DR off' if a0.no_dr else ''), 'config': str(a0.config), 'ckpt': str(a0.ckpt), 'task': str(task), 'worlds': out}, indent=1))
+for w, o in enumerate(out): print(w, o['spec'], 'end', o['reach_end'], 'tube', o['tube_seated'], o['tube_end_lat_mm'], o['tube_end_dz_mm'], o['tube_end_tilt_deg'], 'pip', o['pipette_seated'])

@@ -1,0 +1,140 @@
+{
+ "full_window_episodes": 20,
+ "reach_end_full_window": {
+  "policy": 6,
+  "zero": 2,
+  "both": 1
+ },
+ "a_all_full_window": {
+  "slip_mm_p50_p90_n": {
+   "policy": [
+    18.64,
+    38.72,
+    20
+   ],
+   "zero": [
+    14.26,
+    39.87,
+    20
+   ]
+  },
+  "tilt_deg_p50_p90_n": {
+   "policy": [
+    7.95,
+    10.67,
+    20
+   ],
+   "zero": [
+    5.96,
+    11.09,
+    20
+   ]
+  }
+ },
+ "b_both_reach_end": {
+  "slip_mm_p50_p90_n": {
+   "policy": [
+    20.91,
+    20.91,
+    1
+   ],
+   "zero": [
+    13.19,
+    13.19,
+    1
+   ]
+  },
+  "tilt_deg_p50_p90_n": {
+   "policy": [
+    7.69,
+    7.69,
+    1
+   ],
+   "zero": [
+    9.96,
+    9.96,
+    1
+   ]
+  }
+ },
+ "c_per_phase_both_reach_end": {
+  "carry": {
+   "slip_mm": {
+    "policy": [
+     5.85,
+     5.85,
+     1
+    ],
+    "zero": [
+     11.17,
+     11.17,
+     1
+    ]
+   },
+   "tilt_deg": {
+    "policy": [
+     3.15,
+     3.15,
+     1
+    ],
+    "zero": [
+     4.4,
+     4.4,
+     1
+    ]
+   }
+  },
+  "press": {
+   "slip_mm": {
+    "policy": [
+     5.93,
+     5.93,
+     1
+    ],
+    "zero": [
+     7.97,
+     7.97,
+     1
+    ]
+   },
+   "tilt_deg": {
+    "policy": [
+     4.12,
+     4.12,
+     1
+    ],
+    "zero": [
+     4.28,
+     4.28,
+     1
+    ]
+   }
+  },
+  "place": {
+   "slip_mm": {
+    "policy": [
+     20.91,
+     20.91,
+     1
+    ],
+    "zero": [
+     13.19,
+     13.19,
+     1
+    ]
+   },
+   "tilt_deg": {
+    "policy": [
+     7.69,
+     7.69,
+     1
+    ],
+    "zero": [
+     9.96,
+     9.96,
+     1
+    ]
+   }
+  }
+ }
+}

@@ -1,0 +1,18 @@
+{
+ "layer": "reference labels from the physics demo (force > 0.10 x object weight)",
+ "links": 42,
+ "frames": 2401,
+ "contact_fraction_per_finger": {
+  "r_thumb": 0.323,
+  "r_index": 0.851,
+  "r_middle": 0.85,
+  "r_ring": 0.853,
+  "r_pinky": 0.847,
+  "l_thumb": 0.607,
+  "l_index": 0.404,
+  "l_middle": 0.078,
+  "l_ring": 0.03,
+  "l_pinky": 0.0
+ },
+ "free_fraction_left_ring_pinky": 0.985
+}

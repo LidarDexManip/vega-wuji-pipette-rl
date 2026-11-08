@@ -1,0 +1,627 @@
+{
+ "rack_bottom_z_m": 0.7218999850006123,
+ "holes": {
+  "r0c0": {
+   "centre_xy_m": [
+    0.46672,
+    0.31032
+   ],
+   "min_radius_by_2mm_band_mm": {
+    "0": 17.91,
+    "2": null,
+    "4": null,
+    "6": null,
+    "8": null,
+    "10": 17.91,
+    "12": 6.89,
+    "14": 6.89,
+    "16": 6.92,
+    "18": null,
+    "20": null,
+    "22": null,
+    "24": null,
+    "26": null,
+    "28": null,
+    "30": null,
+    "32": null,
+    "34": null,
+    "36": null,
+    "38": null,
+    "40": null,
+    "42": null,
+    "44": null,
+    "46": null,
+    "48": null,
+    "50": null,
+    "52": 19.25,
+    "54": 15.25,
+    "56": 15.25,
+    "58": 15.95,
+    "60": 19.35
+   }
+  },
+  "r0c1": {
+   "centre_xy_m": [
+    0.43078,
+    0.30383
+   ],
+   "min_radius_by_2mm_band_mm": {
+    "0": null,
+    "2": null,
+    "4": null,
+    "6": null,
+    "8": null,
+    "10": null,
+    "12": 6.93,
+    "14": 6.93,
+    "16": 6.97,
+    "18": null,
+    "20": null,
+    "22": null,
+    "24": null,
+    "26": null,
+    "28": null,
+    "30": null,
+    "32": null,
+    "34": null,
+    "36": null,
+    "38": null,
+    "40": null,
+    "42": null,
+    "44": null,
+    "46": null,
+    "48": null,
+    "50": null,
+    "52": null,
+    "54": 15.3,
+    "56": 15.3,
+    "58": 15.99,
+    "60": null
+   }
+  },
+  "r0c2": {
+   "centre_xy_m": [
+    0.39486,
+    0.29742
+   ],
+   "min_radius_by_2mm_band_mm": {
+    "0": 19.44,
+    "2": null,
+    "4": null,
+    "6": null,
+    "8": null,
+    "10": null,
+    "12": 6.88,
+    "14": null,
+    "16": 6.88,
+    "18": null,
+    "20": null,
+    "22": null,
+    "24": null,
+    "26": null,
+    "28": null,
+    "30": null,
+    "32": null,
+    "34": null,
+    "36": null,
+    "38": null,
+    "40": null,
+    "42": null,
+    "44": null,
+    "46": null,
+    "48": null,
+    "50": null,
+    "52": null,
+    "54": 15.25,
+    "56": 15.25,
+    "58": 15.94,
+    "60": null
+   }
+  },
+  "r0c3": {
+   "centre_xy_m": [
+    0.35907,
+    0.29103
+   ],
+   "min_radius_by_2mm_band_mm": {
+    "0": null,
+    "2": null,
+    "4": null,
+    "6": null,
+    "8": null,
+    "10": null,
+    "12": 6.95,
+    "14": 6.95,
+    "16": 6.99,
+    "18": null,
+    "20": null,
+    "22": null,
+    "24": null,
+    "26": null,
+    "28": null,
+    "30": null,
+    "32": null,
+    "34": null,
+    "36": null,
+    "38": null,
+    "40": null,
+    "42": null,
+    "44": null,
+    "46": null,
+    "48": null,
+    "50": null,
+    "52": null,
+    "54": 15.32,
+    "56": 15.32,
+    "58": 16.01,
+    "60": null
+   }
+  },
+  "r0c4": {
+   "centre_xy_m": [
+    0.32315,
+    0.28462
+   ],
+   "min_radius_by_2mm_band_mm": {
+    "0": 17.95,
+    "2": null,
+    "4": null,
+    "6": null,
+    "8": null,
+    "10": 17.95,
+    "12": 6.9,
+    "14": 6.9,
+    "16": 6.94,
+    "18": null,
+    "20": null,
+    "22": null,
+    "24": null,
+    "26": null,
+    "28": null,
+    "30": null,
+    "32": null,
+    "34": null,
+    "36": null,
+    "38": null,
+    "40": null,
+    "42": null,
+    "44": null,
+    "46": null,
+    "48": null,
+    "50": null,
+    "52": 19.29,
+    "54": 15.27,
+    "56": 15.27,
+    "58": 15.96,
+    "60": 19.39
+   }
+  },
+  "r1c0": {
+   "centre_xy_m": [
+    0.47355,
+    0.27216
+   ],
+   "min_radius_by_2mm_band_mm": {
+    "0": 18.13,
+    "2": null,
+    "4": null,
+    "6": null,
+    "8": null,
+    "10": 18.13,
+    "12": 6.78,
+    "14": 6.78,
+    "16": 6.82,
+    "18": null,
+    "20": null,
+    "22": null,
+    "24": null,
+    "26": null,
+    "28": null,
+    "30": null,
+    "32": null,
+    "34": null,
+    "36": null,
+    "38": null,
+    "40": null,
+    "42": null,
+    "44": null,
+    "46": null,
+    "48": null,
+    "50": null,
+    "52": 19.47,
+    "54": 15.15,
+    "56": 15.15,
+    "58": 15.84,
+    "60": 19.57
+   }
+  },
+  "r1c1": {
+   "centre_xy_m": [
+    0.43761,
+    0.26542
+   ],
+   "min_radius_by_2mm_band_mm": {
+    "0": null,
+    "2": null,
+    "4": null,
+    "6": null,
+    "8": null,
+    "10": null,
+    "12": 6.8,
+    "14": 6.8,
+    "16": 6.83,
+    "18": null,
+    "20": null,
+    "22": null,
+    "24": null,
+    "26": null,
+    "28": null,
+    "30": null,
+    "32": null,
+    "34": null,
+    "36": null,
+    "38": null,
+    "40": null,
+    "42": null,
+    "44": null,
+    "46": null,
+    "48": null,
+    "50": null,
+    "52": null,
+    "54": 15.17,
+    "56": 15.17,
+    "58": 15.86,
+    "60": null
+   }
+  },
+  "r1c2": {
+   "centre_xy_m": [
+    0.40189,
+    0.25937
+   ],
+   "min_radius_by_2mm_band_mm": {
+    "0": 19.25,
+    "2": null,
+    "4": null,
+    "6": null,
+    "8": null,
+    "10": null,
+    "12": 6.73,
+    "14": null,
+    "16": 6.73,
+    "18": null,
+    "20": null,
+    "22": null,
+    "24": null,
+    "26": null,
+    "28": null,
+    "30": null,
+    "32": null,
+    "34": null,
+    "36": null,
+    "38": null,
+    "40": null,
+    "42": null,
+    "44": null,
+    "46": null,
+    "48": null,
+    "50": null,
+    "52": null,
+    "54": 15.1,
+    "56": 15.1,
+    "58": 15.79,
+    "60": null
+   }
+  },
+  "r1c3": {
+   "centre_xy_m": [
+    0.36589,
+    0.25299
+   ],
+   "min_radius_by_2mm_band_mm": {
+    "0": null,
+    "2": null,
+    "4": null,
+    "6": null,
+    "8": null,
+    "10": null,
+    "12": 6.74,
+    "14": 6.74,
+    "16": 6.77,
+    "18": null,
+    "20": null,
+    "22": null,
+    "24": null,
+    "26": null,
+    "28": null,
+    "30": null,
+    "32": null,
+    "34": null,
+    "36": null,
+    "38": null,
+    "40": null,
+    "42": null,
+    "44": null,
+    "46": null,
+    "48": null,
+    "50": null,
+    "52": null,
+    "54": 15.1,
+    "56": 15.1,
+    "58": 15.79,
+    "60": null
+   }
+  },
+  "r1c4": {
+   "centre_xy_m": [
+    0.32998,
+    0.24619
+   ],
+   "min_radius_by_2mm_band_mm": {
+    "0": 17.81,
+    "2": null,
+    "4": null,
+    "6": null,
+    "8": null,
+    "10": 17.81,
+    "12": 6.78,
+    "14": 6.78,
+    "16": 6.82,
+    "18": null,
+    "20": null,
+    "22": null,
+    "24": null,
+    "26": null,
+    "28": null,
+    "30": null,
+    "32": null,
+    "34": null,
+    "36": null,
+    "38": null,
+    "40": null,
+    "42": null,
+    "44": null,
+    "46": null,
+    "48": null,
+    "50": null,
+    "52": 19.16,
+    "54": 15.15,
+    "56": 15.15,
+    "58": 15.85,
+    "60": 19.25
+   }
+  }
+ },
+ "fits": {
+  "r0c0": {
+   "top": {
+    "centre_xy_m": [
+     0.46679,
+     0.310464
+    ],
+    "radius_mm": 15.577,
+    "fit_std_mm": 0.732,
+    "offset_from_proxy_centre_mm": 0.16,
+    "n": 1610
+   },
+   "lower": {
+    "centre_xy_m": [
+     0.466677,
+     0.310252
+    ],
+    "radius_mm": 6.989,
+    "fit_std_mm": 0.032,
+    "offset_from_proxy_centre_mm": 0.08,
+    "n": 2042
+   },
+   "top_vs_lower_axis_offset_mm": 0.24
+  },
+  "r0c1": {
+   "top": {
+    "centre_xy_m": [
+     0.430725,
+     0.303792
+    ],
+    "radius_mm": 15.608,
+    "fit_std_mm": 0.771,
+    "offset_from_proxy_centre_mm": 0.07,
+    "n": 1612
+   },
+   "lower": {
+    "centre_xy_m": [
+     0.43081,
+     0.303844
+    ],
+    "radius_mm": 6.989,
+    "fit_std_mm": 0.032,
+    "offset_from_proxy_centre_mm": 0.03,
+    "n": 2042
+   },
+   "top_vs_lower_axis_offset_mm": 0.1
+  },
+  "r0c2": {
+   "top": {
+    "centre_xy_m": [
+     0.394652,
+     0.297395
+    ],
+    "radius_mm": 15.553,
+    "fit_std_mm": 0.697,
+    "offset_from_proxy_centre_mm": 0.21,
+    "n": 1584
+   },
+   "lower": {
+    "centre_xy_m": [
+     0.394943,
+     0.297436
+    ],
+    "radius_mm": 6.961,
+    "fit_std_mm": 0.0,
+    "offset_from_proxy_centre_mm": 0.08,
+    "n": 290
+   },
+   "top_vs_lower_axis_offset_mm": 0.29
+  },
+  "r0c3": {
+   "top": {
+    "centre_xy_m": [
+     0.359065,
+     0.291058
+    ],
+    "radius_mm": 15.612,
+    "fit_std_mm": 0.776,
+    "offset_from_proxy_centre_mm": 0.03,
+    "n": 1614
+   },
+   "lower": {
+    "centre_xy_m": [
+     0.359076,
+     0.291027
+    ],
+    "radius_mm": 6.989,
+    "fit_std_mm": 0.032,
+    "offset_from_proxy_centre_mm": 0.01,
+    "n": 2042
+   },
+   "top_vs_lower_axis_offset_mm": 0.03
+  },
+  "r0c4": {
+   "top": {
+    "centre_xy_m": [
+     0.323003,
+     0.284647
+    ],
+    "radius_mm": 15.574,
+    "fit_std_mm": 0.727,
+    "offset_from_proxy_centre_mm": 0.15,
+    "n": 1607
+   },
+   "lower": {
+    "centre_xy_m": [
+     0.323209,
+     0.284619
+    ],
+    "radius_mm": 6.989,
+    "fit_std_mm": 0.032,
+    "offset_from_proxy_centre_mm": 0.06,
+    "n": 2042
+   },
+   "top_vs_lower_axis_offset_mm": 0.21
+  },
+  "r1c0": {
+   "top": {
+    "centre_xy_m": [
+     0.473497,
+     0.272373
+    ],
+    "radius_mm": 15.569,
+    "fit_std_mm": 0.727,
+    "offset_from_proxy_centre_mm": 0.22,
+    "n": 1613
+   },
+   "lower": {
+    "centre_xy_m": [
+     0.473514,
+     0.271987
+    ],
+    "radius_mm": 6.989,
+    "fit_std_mm": 0.032,
+    "offset_from_proxy_centre_mm": 0.18,
+    "n": 2042
+   },
+   "top_vs_lower_axis_offset_mm": 0.39
+  },
+  "r1c1": {
+   "top": {
+    "centre_xy_m": [
+     0.437663,
+     0.265193
+    ],
+    "radius_mm": 15.571,
+    "fit_std_mm": 0.729,
+    "offset_from_proxy_centre_mm": 0.23,
+    "n": 1601
+   },
+   "lower": {
+    "centre_xy_m": [
+     0.437647,
+     0.265579
+    ],
+    "radius_mm": 6.989,
+    "fit_std_mm": 0.032,
+    "offset_from_proxy_centre_mm": 0.16,
+    "n": 2042
+   },
+   "top_vs_lower_axis_offset_mm": 0.39
+  },
+  "r1c2": {
+   "top": {
+    "centre_xy_m": [
+     0.401862,
+     0.259538
+    ],
+    "radius_mm": 15.61,
+    "fit_std_mm": 0.782,
+    "offset_from_proxy_centre_mm": 0.16,
+    "n": 1624
+   },
+   "lower": {
+    "centre_xy_m": [
+     0.40178,
+     0.259171
+    ],
+    "radius_mm": 6.961,
+    "fit_std_mm": 0.0,
+    "offset_from_proxy_centre_mm": 0.23,
+    "n": 290
+   },
+   "top_vs_lower_axis_offset_mm": 0.38
+  },
+  "r1c3": {
+   "top": {
+    "centre_xy_m": [
+     0.365842,
+     0.253188
+    ],
+    "radius_mm": 15.597,
+    "fit_std_mm": 0.767,
+    "offset_from_proxy_centre_mm": 0.21,
+    "n": 1620
+   },
+   "lower": {
+    "centre_xy_m": [
+     0.365913,
+     0.252762
+    ],
+    "radius_mm": 6.989,
+    "fit_std_mm": 0.032,
+    "offset_from_proxy_centre_mm": 0.23,
+    "n": 2042
+   },
+   "top_vs_lower_axis_offset_mm": 0.43
+  },
+  "r1c4": {
+   "top": {
+    "centre_xy_m": [
+     0.330026,
+     0.245988
+    ],
+    "radius_mm": 15.587,
+    "fit_std_mm": 0.751,
+    "offset_from_proxy_centre_mm": 0.21,
+    "n": 1623
+   },
+   "lower": {
+    "centre_xy_m": [
+     0.330046,
+     0.246354
+    ],
+    "radius_mm": 6.989,
+    "fit_std_mm": 0.032,
+    "offset_from_proxy_centre_mm": 0.18,
+    "n": 2042
+   },
+   "top_vs_lower_axis_offset_mm": 0.37
+  }
+ }
+}

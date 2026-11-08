@@ -1,0 +1,430 @@
+{
+ "task": "../../tasks/task_kin_noprior",
+ "out": "../runs/stage0_noprior",
+ "num_envs": 1024,
+ "max_env_steps": 600000000.0,
+ "wall_hours": 9.22,
+ "ckpt_minutes": 60,
+ "latest_minutes": 5,
+ "ckpt_steps": 25000000.0,
+ "dr": "dr_stage0.json",
+ "init_std": 0.1,
+ "reward_scale": 0.01,
+ "group_scale": {
+  "FR": 0.1,
+  "AR": 0.04,
+  "FL": 0.05,
+  "AL": 0.04
+ },
+ "seed": 11,
+ "extras": {
+  "real_cmd": true,
+  "ema_alpha": 0.5,
+  "holder": {
+   "stand_xy_mm": 20,
+   "stand_yaw_deg": 5,
+   "rack_xy_mm": 20,
+   "rack_yaw_deg": 5,
+   "blend_s": 1.5,
+   "meas_xy_mm": 5,
+   "meas_yaw_deg": 2,
+   "hole_pairs": [
+    [
+     "r0c0",
+     "r0c0"
+    ],
+    [
+     "r0c0",
+     "r0c1"
+    ],
+    [
+     "r0c0",
+     "r0c2"
+    ],
+    [
+     "r0c0",
+     "r0c3"
+    ],
+    [
+     "r0c0",
+     "r0c4"
+    ],
+    [
+     "r0c0",
+     "r1c0"
+    ],
+    [
+     "r0c0",
+     "r1c1"
+    ],
+    [
+     "r0c0",
+     "r1c2"
+    ],
+    [
+     "r0c0",
+     "r1c3"
+    ],
+    [
+     "r0c0",
+     "r1c4"
+    ],
+    [
+     "r0c1",
+     "r0c0"
+    ],
+    [
+     "r0c1",
+     "r0c1"
+    ],
+    [
+     "r0c1",
+     "r0c2"
+    ],
+    [
+     "r0c1",
+     "r0c3"
+    ],
+    [
+     "r0c1",
+     "r0c4"
+    ],
+    [
+     "r0c1",
+     "r1c0"
+    ],
+    [
+     "r0c1",
+     "r1c1"
+    ],
+    [
+     "r0c1",
+     "r1c2"
+    ],
+    [
+     "r0c1",
+     "r1c3"
+    ],
+    [
+     "r0c2",
+     "r0c0"
+    ],
+    [
+     "r0c2",
+     "r0c1"
+    ],
+    [
+     "r0c2",
+     "r0c2"
+    ],
+    [
+     "r0c2",
+     "r0c3"
+    ],
+    [
+     "r0c2",
+     "r0c4"
+    ],
+    [
+     "r0c2",
+     "r1c0"
+    ],
+    [
+     "r0c2",
+     "r1c1"
+    ],
+    [
+     "r0c2",
+     "r1c2"
+    ],
+    [
+     "r0c2",
+     "r1c3"
+    ],
+    [
+     "r0c2",
+     "r1c4"
+    ],
+    [
+     "r0c3",
+     "r0c0"
+    ],
+    [
+     "r0c3",
+     "r0c1"
+    ],
+    [
+     "r0c3",
+     "r0c2"
+    ],
+    [
+     "r0c3",
+     "r0c3"
+    ],
+    [
+     "r0c3",
+     "r0c4"
+    ],
+    [
+     "r0c3",
+     "r1c0"
+    ],
+    [
+     "r0c3",
+     "r1c1"
+    ],
+    [
+     "r0c3",
+     "r1c2"
+    ],
+    [
+     "r0c3",
+     "r1c3"
+    ],
+    [
+     "r0c3",
+     "r1c4"
+    ],
+    [
+     "r0c4",
+     "r0c0"
+    ],
+    [
+     "r0c4",
+     "r0c1"
+    ],
+    [
+     "r0c4",
+     "r0c2"
+    ],
+    [
+     "r0c4",
+     "r0c3"
+    ],
+    [
+     "r0c4",
+     "r0c4"
+    ],
+    [
+     "r0c4",
+     "r1c0"
+    ],
+    [
+     "r0c4",
+     "r1c1"
+    ],
+    [
+     "r0c4",
+     "r1c2"
+    ],
+    [
+     "r0c4",
+     "r1c3"
+    ],
+    [
+     "r0c4",
+     "r1c4"
+    ],
+    [
+     "r1c1",
+     "r0c0"
+    ],
+    [
+     "r1c1",
+     "r0c1"
+    ],
+    [
+     "r1c1",
+     "r0c2"
+    ],
+    [
+     "r1c1",
+     "r0c3"
+    ],
+    [
+     "r1c1",
+     "r0c4"
+    ],
+    [
+     "r1c1",
+     "r1c0"
+    ],
+    [
+     "r1c1",
+     "r1c1"
+    ],
+    [
+     "r1c1",
+     "r1c2"
+    ],
+    [
+     "r1c1",
+     "r1c3"
+    ],
+    [
+     "r1c1",
+     "r1c4"
+    ],
+    [
+     "r1c2",
+     "r0c1"
+    ],
+    [
+     "r1c2",
+     "r0c2"
+    ],
+    [
+     "r1c2",
+     "r0c3"
+    ],
+    [
+     "r1c2",
+     "r0c4"
+    ],
+    [
+     "r1c2",
+     "r1c0"
+    ],
+    [
+     "r1c2",
+     "r1c1"
+    ],
+    [
+     "r1c2",
+     "r1c2"
+    ],
+    [
+     "r1c2",
+     "r1c3"
+    ],
+    [
+     "r1c2",
+     "r1c4"
+    ],
+    [
+     "r1c3",
+     "r0c0"
+    ],
+    [
+     "r1c3",
+     "r0c1"
+    ],
+    [
+     "r1c3",
+     "r0c2"
+    ],
+    [
+     "r1c3",
+     "r0c3"
+    ],
+    [
+     "r1c3",
+     "r0c4"
+    ],
+    [
+     "r1c3",
+     "r1c0"
+    ],
+    [
+     "r1c3",
+     "r1c1"
+    ],
+    [
+     "r1c3",
+     "r1c2"
+    ],
+    [
+     "r1c3",
+     "r1c3"
+    ],
+    [
+     "r1c3",
+     "r1c4"
+    ],
+    [
+     "r1c4",
+     "r0c0"
+    ],
+    [
+     "r1c4",
+     "r0c1"
+    ],
+    [
+     "r1c4",
+     "r0c2"
+    ],
+    [
+     "r1c4",
+     "r0c3"
+    ],
+    [
+     "r1c4",
+     "r0c4"
+    ],
+    [
+     "r1c4",
+     "r1c0"
+    ],
+    [
+     "r1c4",
+     "r1c1"
+    ],
+    [
+     "r1c4",
+     "r1c2"
+    ],
+    [
+     "r1c4",
+     "r1c3"
+    ],
+    [
+     "r1c4",
+     "r1c4"
+    ]
+   ],
+   "engage_fix": true,
+   "hole_centres": "scene"
+  },
+  "w": {
+   "contact_set": 0.5,
+   "contact_graph": 0.5,
+   "wrench_support": 0.5,
+   "free_finger_acc": 1.0,
+   "action_rate": 0.5,
+   "elbow_height": 50.0,
+   "joint_margin": 1.0,
+   "finger_jerk": 0.2,
+   "thumb_prior": 0.5,
+   "posture": 0.1,
+   "finger_band": 3.0,
+   "tube_tilt": 1.0,
+   "arm_band": 1.0,
+   "finger_still": 3.0,
+   "pipette_seat": 1.0
+  },
+  "cmd_hz": 100,
+  "clamp_after_ff": true,
+  "band_on_deviation": true
+ },
+ "tracker": {
+  "voc_start": 1.0,
+  "voc_kp": 2000.0,
+  "voc_kd": 90.0,
+  "voc_free_frac": 0.1,
+  "warp": [
+   0.8,
+   1.2
+  ],
+  "curriculum": {
+   "success_threshold": 0.6,
+   "window_its": 5,
+   "factor": 0.8,
+   "floor": 0.05,
+   "min_its_per_level": 20
+  },
+  "press_progress_w": 2.0
+ },
+ "_note": "TRACKER Stage 0 (11-06): base = KINEMATIC reference of run01 T1 (IK arms + finger reference + NO squeeze prior (IK base only; head-to-head arm); no MPC base), task_kin_prior built by build_kin_task.py; R3A reward set (finger_band 2.0, finger_still, arm_band, tube_tilt, pipette_seat, T1-T3); holders +-2 cm / +-5 deg (measurement 5 mm / 2 deg), 88 hole pairs, time-warp 0.8-1.2; physical DR off except finger kd x3 nominal (the real-robot finger setting); VOC curriculum 1 -> 0 on success (10 % of worlds always at VOC 0 for readout). | RESTART 2 (approved 11-06): from latest.pt (72.4M) with plunger_weight 8, press_progress_w 2.0 (dense depth term), thumb_press_scale 2.0 (press window only), finger_still 3, finger_band 3; idle_finger_mask OFF.",
+ "plunger_weight": 8.0,
+ "thumb_press_scale": 2.0
+}

@@ -1,0 +1,578 @@
+[
+ {
+  "candidate": "R2 s2 final",
+  "from_start (policy | zero)": "44/64 end, pip 44, tube 40, press 54/64 | 2/64 end, pip 2, tube 1, press 14/64",
+  "train perturbations": "83/92 end, pip 82, tube 72, press 33/36 | 23/92 end, pip 23, tube 19, press 23/36",
+  "held-out holes": "79/92 end, pip 79, tube 68, press 34/36 | 24/92 end, pip 24, tube 19, press 22/36",
+  "held-out placements": "57/92 end, pip 57, tube 49, press 30/36 | 18/92 end, pip 18, tube 14, press 19/36",
+  "slip from start (a: all full-window p50/p90 mm; b: both reach end p50, n)": {
+   "policy": [
+    14.32,
+    27.32,
+    64
+   ],
+   "zero": [
+    0.0,
+    47.09,
+    64
+   ]
+  },
+  "slip_b": {
+   "policy": [
+    15.26,
+    17.24,
+    2
+   ],
+   "zero": [
+    20.97,
+    23.21,
+    2
+   ]
+  },
+  "tilt_b": {
+   "policy": [
+    6.41,
+    7.56,
+    2
+   ],
+   "zero": [
+    14.56,
+    17.11,
+    2
+   ]
+  },
+  "jitter cells > 0.25 (of 25)": 6,
+  "jitter named": {
+   "left thumb hold": 0.092,
+   "left index hold": 0.09,
+   "left middle hold": 0.197,
+   "left ring hold": 0.259,
+   "left pinky hold": 0.305,
+   "right thumb hold": 0.289,
+   "right thumb press": 0.138,
+   "left middle post_release": 0.295,
+   "right index post_release": 0.024
+  },
+  "action_rate": 0.00107,
+  "margin cmd / q (deg)": [
+   5.233,
+   5.254
+  ],
+  "elbow cm": -12.432,
+  "cause_table (from start)": null,
+  "idle fingers over (PROPOSED <=2 deg / 3 deg/s)": {
+   "left thumb hold": [
+    2.81,
+    2.18
+   ],
+   "left index hold": [
+    2.92,
+    1.83
+   ],
+   "left middle hold": [
+    2.14,
+    1.65
+   ],
+   "left ring hold": [
+    2.56,
+    7.77
+   ],
+   "left pinky hold": [
+    2.06,
+    4.67
+   ],
+   "right thumb pre_grasp": [
+    3.34,
+    7.8
+   ],
+   "right thumb hold": [
+    6.89,
+    6.35
+   ],
+   "right thumb post_release": [
+    3.8,
+    8.05
+   ],
+   "right index pre_grasp": [
+    2.19,
+    5.5
+   ],
+   "right index hold": [
+    6.5,
+    4.38
+   ],
+   "right index post_release": [
+    2.13,
+    2.65
+   ],
+   "right middle pre_grasp": [
+    1.56,
+    5.73
+   ],
+   "right middle hold": [
+    6.22,
+    3.85
+   ],
+   "right middle post_release": [
+    2.76,
+    3.89
+   ],
+   "right ring pre_grasp": [
+    1.82,
+    5.21
+   ],
+   "right ring hold": [
+    4.61,
+    4.6
+   ],
+   "right ring post_release": [
+    3.17,
+    3.7
+   ],
+   "right pinky pre_grasp": [
+    4.24,
+    12.61
+   ],
+   "right pinky hold": [
+    6.57,
+    4.8
+   ],
+   "right pinky post_release": [
+    2.29,
+    4.36
+   ]
+  },
+  "shake wrist 3-8 / 8-24 Hz mm carry [R, L] (PROPOSED 0.3 / 0.1)": [
+   [
+    0.5,
+    0.738
+   ],
+   [
+    0.083,
+    0.13
+   ]
+  ],
+  "shake zero residual (same)": [
+   [
+    0.441,
+    0.755
+   ],
+   [
+    0.028,
+    0.094
+   ]
+  ],
+  "pipette at placement: pos err p50 / p90 mm": [
+   6.1,
+   11.9
+  ]
+ },
+ {
+  "candidate": "R3A final",
+  "from_start (policy | zero)": "48/64 end, pip 47, tube 38, press 42/64 | 3/64 end, pip 2, tube 1, press 16/64",
+  "train perturbations": "89/92 end, pip 89, tube 83, press 29/36 | 30/92 end, pip 30, tube 24, press 29/36",
+  "held-out holes": "87/92 end, pip 87, tube 78, press 29/36 | 29/92 end, pip 29, tube 19, press 25/36",
+  "held-out placements": "65/92 end, pip 65, tube 56, press 26/36 | 13/92 end, pip 13, tube 10, press 24/36",
+  "slip from start (a: all full-window p50/p90 mm; b: both reach end p50, n)": {
+   "policy": [
+    13.52,
+    24.2,
+    64
+   ],
+   "zero": [
+    8.88,
+    47.62,
+    64
+   ]
+  },
+  "slip_b": {
+   "policy": [
+    10.24,
+    12.28,
+    3
+   ],
+   "zero": [
+    16.11,
+    29.49,
+    3
+   ]
+  },
+  "tilt_b": {
+   "policy": [
+    6.66,
+    10.45,
+    3
+   ],
+   "zero": [
+    12.1,
+    14.18,
+    3
+   ]
+  },
+  "jitter cells > 0.25 (of 25)": 0,
+  "jitter named": {
+   "left thumb hold": 0.073,
+   "left index hold": 0.057,
+   "left middle hold": 0.107,
+   "left ring hold": 0.051,
+   "left pinky hold": 0.033,
+   "right thumb hold": 0.233,
+   "right thumb press": 0.163,
+   "left middle post_release": 0.034,
+   "right index post_release": 0.02
+  },
+  "action_rate": 0.000616,
+  "margin cmd / q (deg)": [
+   5.73,
+   5.688
+  ],
+  "elbow cm": -12.236,
+  "cause_table (from start)": {
+   "success": 37,
+   "tube jammed tilted ~5 mm high (reached the end)": 10,
+   "pipette after placement in the stand (fingers opening)": 6,
+   "pipette, carry / press": 3,
+   "pipette extraction from the stand": 3,
+   "tube lost during the carry / press": 3,
+   "pipette not seated (reached the end)": 1,
+   "tube disturbed at the grasp / lost at the lift": 1
+  },
+  "idle fingers over (PROPOSED <=2 deg / 3 deg/s)": {
+   "left thumb pre_grasp": [
+    2.72,
+    3.58
+   ],
+   "left thumb hold": [
+    2.22,
+    1.83
+   ],
+   "left thumb post_release": [
+    5.62,
+    3.51
+   ],
+   "left index pre_grasp": [
+    3.67,
+    5.17
+   ],
+   "left index post_release": [
+    7.13,
+    5.32
+   ],
+   "left middle pre_grasp": [
+    3.47,
+    5.99
+   ],
+   "left middle hold": [
+    2.56,
+    2.17
+   ],
+   "left middle post_release": [
+    5.47,
+    4.52
+   ],
+   "left ring pre_grasp": [
+    2.95,
+    4.89
+   ],
+   "left ring hold": [
+    3.9,
+    2.56
+   ],
+   "left ring post_release": [
+    6.04,
+    2.71
+   ],
+   "left pinky pre_grasp": [
+    2.4,
+    3.57
+   ],
+   "left pinky hold": [
+    4.82,
+    2.89
+   ],
+   "left pinky post_release": [
+    3.93,
+    3.8
+   ],
+   "right thumb pre_grasp": [
+    2.27,
+    5.27
+   ],
+   "right thumb hold": [
+    7.74,
+    4.66
+   ],
+   "right thumb post_release": [
+    5.21,
+    4.11
+   ],
+   "right index pre_grasp": [
+    1.21,
+    4.23
+   ],
+   "right index hold": [
+    4.7,
+    3.28
+   ],
+   "right index post_release": [
+    3.57,
+    3.2
+   ],
+   "right middle pre_grasp": [
+    1.01,
+    3.47
+   ],
+   "right middle hold": [
+    4.84,
+    2.83
+   ],
+   "right middle post_release": [
+    3.28,
+    2.72
+   ],
+   "right ring pre_grasp": [
+    1.41,
+    4.6
+   ],
+   "right ring hold": [
+    5.13,
+    4.75
+   ],
+   "right ring post_release": [
+    4.31,
+    3.81
+   ],
+   "right pinky pre_grasp": [
+    1.48,
+    4.41
+   ],
+   "right pinky hold": [
+    9.62,
+    5.21
+   ],
+   "right pinky post_release": [
+    6.12,
+    4.44
+   ]
+  },
+  "shake wrist 3-8 / 8-24 Hz mm carry [R, L] (PROPOSED 0.3 / 0.1)": [
+   [
+    0.412,
+    0.535
+   ],
+   [
+    0.073,
+    0.104
+   ]
+  ],
+  "shake zero residual (same)": [
+   [
+    0.271,
+    0.558
+   ],
+   [
+    0.022,
+    0.07
+   ]
+  ],
+  "pipette at placement: pos err p50 / p90 mm": [
+   4.7,
+   10.7
+  ]
+ },
+ {
+  "candidate": "R3B final",
+  "from_start (policy | zero)": "52/64 end, pip 52, tube 42, press 59/64 | 1/64 end, pip 1, tube 0, press 18/64",
+  "train perturbations": "89/92 end, pip 89, tube 83, press 34/36 | 29/92 end, pip 29, tube 24, press 29/36",
+  "held-out holes": "89/92 end, pip 89, tube 76, press 35/36 | 28/92 end, pip 28, tube 20, press 25/36",
+  "held-out placements": "58/92 end, pip 58, tube 53, press 29/36 | 14/92 end, pip 14, tube 10, press 23/36",
+  "slip from start (a: all full-window p50/p90 mm; b: both reach end p50, n)": {
+   "policy": [
+    11.87,
+    18.14,
+    64
+   ],
+   "zero": [
+    8.9,
+    47.43,
+    64
+   ]
+  },
+  "slip_b": {
+   "policy": [
+    11.98,
+    11.98,
+    1
+   ],
+   "zero": [
+    15.99,
+    15.99,
+    1
+   ]
+  },
+  "tilt_b": {
+   "policy": [
+    7.51,
+    7.51,
+    1
+   ],
+   "zero": [
+    9.69,
+    9.69,
+    1
+   ]
+  },
+  "jitter cells > 0.25 (of 25)": 0,
+  "jitter named": {
+   "left thumb hold": 0.077,
+   "left index hold": 0.054,
+   "left middle hold": 0.111,
+   "left ring hold": 0.044,
+   "left pinky hold": 0.031,
+   "right thumb hold": 0.238,
+   "right thumb press": 0.168,
+   "left middle post_release": 0.042,
+   "right index post_release": 0.02
+  },
+  "action_rate": 0.00063,
+  "margin cmd / q (deg)": [
+   5.73,
+   5.674
+  ],
+  "elbow cm": -12.428,
+  "cause_table (from start)": {
+   "success": 42,
+   "tube jammed tilted ~5 mm high (reached the end)": 10,
+   "pipette after placement in the stand (fingers opening)": 8,
+   "tube lost during the carry / press": 2,
+   "pipette extraction from the stand": 1,
+   "tube disturbed before / at the grasp": 1
+  },
+  "idle fingers over (PROPOSED <=2 deg / 3 deg/s)": {
+   "left thumb pre_grasp": [
+    2.74,
+    4.73
+   ],
+   "left thumb post_release": [
+    3.5,
+    2.91
+   ],
+   "left index pre_grasp": [
+    2.52,
+    4.47
+   ],
+   "left index post_release": [
+    5.17,
+    4.31
+   ],
+   "left middle pre_grasp": [
+    3.38,
+    6.02
+   ],
+   "left middle hold": [
+    3.24,
+    2.37
+   ],
+   "left middle post_release": [
+    8.55,
+    5.68
+   ],
+   "left ring pre_grasp": [
+    4.22,
+    6.14
+   ],
+   "left ring hold": [
+    4.1,
+    2.39
+   ],
+   "left ring post_release": [
+    8.25,
+    2.94
+   ],
+   "left pinky pre_grasp": [
+    2.97,
+    2.79
+   ],
+   "left pinky hold": [
+    4.75,
+    2.53
+   ],
+   "left pinky post_release": [
+    5.23,
+    3.19
+   ],
+   "right thumb pre_grasp": [
+    2.75,
+    7.23
+   ],
+   "right thumb hold": [
+    9.26,
+    4.81
+   ],
+   "right thumb post_release": [
+    3.25,
+    3.24
+   ],
+   "right index pre_grasp": [
+    0.9,
+    3.33
+   ],
+   "right index hold": [
+    5.09,
+    3.36
+   ],
+   "right index post_release": [
+    3.94,
+    3.09
+   ],
+   "right middle hold": [
+    4.58,
+    2.93
+   ],
+   "right middle post_release": [
+    3.0,
+    2.38
+   ],
+   "right ring hold": [
+    3.73,
+    3.56
+   ],
+   "right ring post_release": [
+    3.75,
+    2.96
+   ],
+   "right pinky hold": [
+    4.88,
+    3.34
+   ],
+   "right pinky post_release": [
+    2.64,
+    2.64
+   ]
+  },
+  "shake wrist 3-8 / 8-24 Hz mm carry [R, L] (PROPOSED 0.3 / 0.1)": [
+   [
+    0.511,
+    0.59
+   ],
+   [
+    0.098,
+    0.119
+   ]
+  ],
+  "shake zero residual (same)": [
+   [
+    0.277,
+    0.546
+   ],
+   [
+    0.022,
+    0.07
+   ]
+  ],
+  "pipette at placement: pos err p50 / p90 mm": [
+   5.1,
+   9.6
+  ]
+ }
+]

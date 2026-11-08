@@ -1,0 +1,113 @@
+# placeholder path (repo-relative)	source	path inside the source
+assets/lidar/collision_v2/env_01_pipette_0000.obj	LidarDexManip/g1-pipette-sim	assets/environments/lidar/meshes/collision_v2/env_01_pipette_0000.obj
+assets/lidar/collision_v2/env_01_pipette_0001.obj	LidarDexManip/g1-pipette-sim	assets/environments/lidar/meshes/collision_v2/env_01_pipette_0001.obj
+assets/lidar/collision_v2/env_01_pipette_0002.obj	LidarDexManip/g1-pipette-sim	assets/environments/lidar/meshes/collision_v2/env_01_pipette_0002.obj
+assets/lidar/collision_v2/env_01_pipette_0003.obj	LidarDexManip/g1-pipette-sim	assets/environments/lidar/meshes/collision_v2/env_01_pipette_0003.obj
+assets/lidar/collision_v2/env_01_pipette_0004.obj	LidarDexManip/g1-pipette-sim	assets/environments/lidar/meshes/collision_v2/env_01_pipette_0004.obj
+assets/lidar/collision_v2/env_01_pipette_0005.obj	LidarDexManip/g1-pipette-sim	assets/environments/lidar/meshes/collision_v2/env_01_pipette_0005.obj
+assets/lidar/collision_v2/env_01_pipette_0006.obj	LidarDexManip/g1-pipette-sim	assets/environments/lidar/meshes/collision_v2/env_01_pipette_0006.obj
+assets/lidar/collision_v2/env_01_pipette_0007.obj	LidarDexManip/g1-pipette-sim	assets/environments/lidar/meshes/collision_v2/env_01_pipette_0007.obj
+assets/lidar/collision_v2/env_01_pipette_0008.obj	LidarDexManip/g1-pipette-sim	assets/environments/lidar/meshes/collision_v2/env_01_pipette_0008.obj
+assets/lidar/collision_v2/env_01_pipette_0009.obj	LidarDexManip/g1-pipette-sim	assets/environments/lidar/meshes/collision_v2/env_01_pipette_0009.obj
+assets/lidar/collision_v2/env_01_pipette_0010.obj	LidarDexManip/g1-pipette-sim	assets/environments/lidar/meshes/collision_v2/env_01_pipette_0010.obj
+assets/lidar/collision_v2/env_01_pipette_0034.obj	LidarDexManip/g1-pipette-sim	assets/environments/lidar/meshes/collision_v2/env_01_pipette_0034.obj
+assets/lidar/collision_v2/env_01_pipette_0035.obj	LidarDexManip/g1-pipette-sim	assets/environments/lidar/meshes/collision_v2/env_01_pipette_0035.obj
+assets/lidar/collision_v2/env_01_pipette_0036.obj	LidarDexManip/g1-pipette-sim	assets/environments/lidar/meshes/collision_v2/env_01_pipette_0036.obj
+assets/lidar/collision_v2/env_01_pipette_0037.obj	LidarDexManip/g1-pipette-sim	assets/environments/lidar/meshes/collision_v2/env_01_pipette_0037.obj
+assets/lidar/collision_v2/env_01_pipette_0038.obj	LidarDexManip/g1-pipette-sim	assets/environments/lidar/meshes/collision_v2/env_01_pipette_0038.obj
+assets/lidar/collision_v2/env_01_pipette_0039.obj	LidarDexManip/g1-pipette-sim	assets/environments/lidar/meshes/collision_v2/env_01_pipette_0039.obj
+assets/lidar/collision_v2/env_01_pipette_0040.obj	LidarDexManip/g1-pipette-sim	assets/environments/lidar/meshes/collision_v2/env_01_pipette_0040.obj
+assets/lidar/collision_v2/env_01_pipette_0041.obj	LidarDexManip/g1-pipette-sim	assets/environments/lidar/meshes/collision_v2/env_01_pipette_0041.obj
+assets/lidar/collision_v2/env_01_pipette_0044.obj	LidarDexManip/g1-pipette-sim	assets/environments/lidar/meshes/collision_v2/env_01_pipette_0044.obj
+assets/lidar/collision_v2/env_01_pipette_0045.obj	LidarDexManip/g1-pipette-sim	assets/environments/lidar/meshes/collision_v2/env_01_pipette_0045.obj
+assets/lidar/collision_v2/env_01_pipette_0048.obj	LidarDexManip/g1-pipette-sim	assets/environments/lidar/meshes/collision_v2/env_01_pipette_0048.obj
+assets/lidar/collision_v2/env_01_pipette_0049.obj	LidarDexManip/g1-pipette-sim	assets/environments/lidar/meshes/collision_v2/env_01_pipette_0049.obj
+assets/lidar/collision_v2/env_01_pipette_0052.obj	LidarDexManip/g1-pipette-sim	assets/environments/lidar/meshes/collision_v2/env_01_pipette_0052.obj
+assets/lidar/collision_v2/env_01_pipette_0053.obj	LidarDexManip/g1-pipette-sim	assets/environments/lidar/meshes/collision_v2/env_01_pipette_0053.obj
+assets/lidar/env_01_pipette_visual_1.obj	LidarDexManip/g1-pipette-sim	assets/environments/lidar/meshes/env_01_pipette_visual_1.obj
+assets/lidar/env_01_pipette_visual_2.obj	LidarDexManip/g1-pipette-sim	assets/environments/lidar/meshes/env_01_pipette_visual_2.obj
+assets/lidar/env_01_pipette_visual_3.obj	LidarDexManip/g1-pipette-sim	assets/environments/lidar/meshes/env_01_pipette_visual_3.obj
+assets/lidar/env_01_pipette_visual_5.obj	LidarDexManip/g1-pipette-sim	assets/environments/lidar/meshes/env_01_pipette_visual_5.obj
+assets/lidar/env_01_pipette_visual_6.obj	LidarDexManip/g1-pipette-sim	assets/environments/lidar/meshes/env_01_pipette_visual_6.obj
+assets/pipette/body_000.obj	g1-pipette-sim local output (convex hull pieces of the pipette mesh)	outputs/retarget_bridge/pipette_hull_pieces/e2b5d3538aa773af/body_000.obj
+assets/pipette/body_001.obj	g1-pipette-sim local output (convex hull pieces of the pipette mesh)	outputs/retarget_bridge/pipette_hull_pieces/e2b5d3538aa773af/body_001.obj
+assets/pipette/body_002.obj	g1-pipette-sim local output (convex hull pieces of the pipette mesh)	outputs/retarget_bridge/pipette_hull_pieces/e2b5d3538aa773af/body_002.obj
+assets/pipette/body_003.obj	g1-pipette-sim local output (convex hull pieces of the pipette mesh)	outputs/retarget_bridge/pipette_hull_pieces/e2b5d3538aa773af/body_003.obj
+assets/pipette/body_004.obj	g1-pipette-sim local output (convex hull pieces of the pipette mesh)	outputs/retarget_bridge/pipette_hull_pieces/e2b5d3538aa773af/body_004.obj
+assets/pipette/body_005.obj	g1-pipette-sim local output (convex hull pieces of the pipette mesh)	outputs/retarget_bridge/pipette_hull_pieces/e2b5d3538aa773af/body_005.obj
+assets/pipette/body_006.obj	g1-pipette-sim local output (convex hull pieces of the pipette mesh)	outputs/retarget_bridge/pipette_hull_pieces/e2b5d3538aa773af/body_006.obj
+assets/pipette/body_007.obj	g1-pipette-sim local output (convex hull pieces of the pipette mesh)	outputs/retarget_bridge/pipette_hull_pieces/e2b5d3538aa773af/body_007.obj
+assets/pipette/body_008.obj	g1-pipette-sim local output (convex hull pieces of the pipette mesh)	outputs/retarget_bridge/pipette_hull_pieces/e2b5d3538aa773af/body_008.obj
+assets/pipette/body_009.obj	g1-pipette-sim local output (convex hull pieces of the pipette mesh)	outputs/retarget_bridge/pipette_hull_pieces/e2b5d3538aa773af/body_009.obj
+assets/pipette/body_010.obj	g1-pipette-sim local output (convex hull pieces of the pipette mesh)	outputs/retarget_bridge/pipette_hull_pieces/e2b5d3538aa773af/body_010.obj
+assets/pipette/body_011.obj	g1-pipette-sim local output (convex hull pieces of the pipette mesh)	outputs/retarget_bridge/pipette_hull_pieces/e2b5d3538aa773af/body_011.obj
+assets/pipette/body_012.obj	g1-pipette-sim local output (convex hull pieces of the pipette mesh)	outputs/retarget_bridge/pipette_hull_pieces/e2b5d3538aa773af/body_012.obj
+assets/pipette/body_013.obj	g1-pipette-sim local output (convex hull pieces of the pipette mesh)	outputs/retarget_bridge/pipette_hull_pieces/e2b5d3538aa773af/body_013.obj
+assets/pipette/body_014.obj	g1-pipette-sim local output (convex hull pieces of the pipette mesh)	outputs/retarget_bridge/pipette_hull_pieces/e2b5d3538aa773af/body_014.obj
+assets/pipette/body_015.obj	g1-pipette-sim local output (convex hull pieces of the pipette mesh)	outputs/retarget_bridge/pipette_hull_pieces/e2b5d3538aa773af/body_015.obj
+assets/pipette/body_016.obj	g1-pipette-sim local output (convex hull pieces of the pipette mesh)	outputs/retarget_bridge/pipette_hull_pieces/e2b5d3538aa773af/body_016.obj
+assets/pipette/body_017.obj	g1-pipette-sim local output (convex hull pieces of the pipette mesh)	outputs/retarget_bridge/pipette_hull_pieces/e2b5d3538aa773af/body_017.obj
+assets/pipette/body_018.obj	g1-pipette-sim local output (convex hull pieces of the pipette mesh)	outputs/retarget_bridge/pipette_hull_pieces/e2b5d3538aa773af/body_018.obj
+assets/pipette/body_019.obj	g1-pipette-sim local output (convex hull pieces of the pipette mesh)	outputs/retarget_bridge/pipette_hull_pieces/e2b5d3538aa773af/body_019.obj
+assets/pipette/body_020.obj	g1-pipette-sim local output (convex hull pieces of the pipette mesh)	outputs/retarget_bridge/pipette_hull_pieces/e2b5d3538aa773af/body_020.obj
+assets/pipette/body_021.obj	g1-pipette-sim local output (convex hull pieces of the pipette mesh)	outputs/retarget_bridge/pipette_hull_pieces/e2b5d3538aa773af/body_021.obj
+assets/pipette/plunger_000.obj	g1-pipette-sim local output (convex hull pieces of the pipette mesh)	outputs/retarget_bridge/pipette_hull_pieces/e2b5d3538aa773af/plunger_000.obj
+assets/pipette/plunger_001.obj	g1-pipette-sim local output (convex hull pieces of the pipette mesh)	outputs/retarget_bridge/pipette_hull_pieces/e2b5d3538aa773af/plunger_001.obj
+assets/vega/dexmate_vega_1_collision/head_l1.obj	dexmate-urdf (via RFT/vega_wuji_isaac6/third_party)	robots/humanoid/vega_1/meshes/collision/head_l1.obj
+assets/vega/generated/L_arm_l1_5ab73468dc/L_arm_l1.obj	RFT/vega_wuji_isaac6 (generated from Dexmate Vega URDF)	assets/generated/vega_meshes/L_arm_l1_5ab73468dc/L_arm_l1.obj
+assets/vega/generated/L_arm_l6_a3b5e9df78/L_arm_l6.obj	RFT/vega_wuji_isaac6 (generated from Dexmate Vega URDF)	assets/generated/vega_meshes/L_arm_l6_a3b5e9df78/L_arm_l6.obj
+assets/vega/generated/R_arm_l1_f6ad9ea822/R_arm_l1.obj	RFT/vega_wuji_isaac6 (generated from Dexmate Vega URDF)	assets/generated/vega_meshes/R_arm_l1_f6ad9ea822/R_arm_l1.obj
+assets/vega/generated/R_arm_l6_782e01af21/R_arm_l6.obj	RFT/vega_wuji_isaac6 (generated from Dexmate Vega URDF)	assets/generated/vega_meshes/R_arm_l6_782e01af21/R_arm_l6.obj
+assets/vega/generated/arm_l2_40a4598515/arm_l2.obj	RFT/vega_wuji_isaac6 (generated from Dexmate Vega URDF)	assets/generated/vega_meshes/arm_l2_40a4598515/arm_l2.obj
+assets/vega/generated/arm_l3_3a3314f8ca/arm_l3.obj	RFT/vega_wuji_isaac6 (generated from Dexmate Vega URDF)	assets/generated/vega_meshes/arm_l3_3a3314f8ca/arm_l3.obj
+assets/vega/generated/arm_l4_d04922180f/arm_l4.obj	RFT/vega_wuji_isaac6 (generated from Dexmate Vega URDF)	assets/generated/vega_meshes/arm_l4_d04922180f/arm_l4.obj
+assets/vega/generated/arm_l5_621e021d88/arm_l5.obj	RFT/vega_wuji_isaac6 (generated from Dexmate Vega URDF)	assets/generated/vega_meshes/arm_l5_621e021d88/arm_l5.obj
+assets/vega/generated/arm_l7_a4479ad35d/arm_l7.obj	RFT/vega_wuji_isaac6 (generated from Dexmate Vega URDF)	assets/generated/vega_meshes/arm_l7_a4479ad35d/arm_l7.obj
+assets/vega/generated/arm_l8_172909bb69/arm_l8.obj	RFT/vega_wuji_isaac6 (generated from Dexmate Vega URDF)	assets/generated/vega_meshes/arm_l8_172909bb69/arm_l8.obj
+assets/vega/generated/base_link_43da87ea31/base_link.obj	RFT/vega_wuji_isaac6 (generated from Dexmate Vega URDF)	assets/generated/vega_meshes/base_link_43da87ea31/base_link.obj
+assets/vega/generated/head_l2_4015b07eda/head_l2.obj	RFT/vega_wuji_isaac6 (generated from Dexmate Vega URDF)	assets/generated/vega_meshes/head_l2_4015b07eda/head_l2.obj
+assets/vega/generated/head_l3_243e8e01ad/head_l3.obj	RFT/vega_wuji_isaac6 (generated from Dexmate Vega URDF)	assets/generated/vega_meshes/head_l3_243e8e01ad/head_l3.obj
+assets/vega/generated/lift_link_d2c9c5091b/lift_link.obj	RFT/vega_wuji_isaac6 (generated from Dexmate Vega URDF)	assets/generated/vega_meshes/lift_link_d2c9c5091b/lift_link.obj
+assets/vega/generated/torso_link_9a53c5e9cd/torso_link.obj	RFT/vega_wuji_isaac6 (generated from Dexmate Vega URDF)	assets/generated/vega_meshes/torso_link_9a53c5e9cd/torso_link.obj
+assets/wuji/g1_wuji_retargeting_generated/1_l_index_finger_middle.STL	g1-wuji-retargeting (Yi-Shiuan Tung)	generated/meshes/1_l_index_finger_middle.STL
+assets/wuji/g1_wuji_retargeting_generated/1_l_index_finger_proximal.STL	g1-wuji-retargeting (Yi-Shiuan Tung)	generated/meshes/1_l_index_finger_proximal.STL
+assets/wuji/g1_wuji_retargeting_generated/1_l_index_finger_proximal_abd.STL	g1-wuji-retargeting (Yi-Shiuan Tung)	generated/meshes/1_l_index_finger_proximal_abd.STL
+assets/wuji/g1_wuji_retargeting_generated/1_l_middle_finger_middle.STL	g1-wuji-retargeting (Yi-Shiuan Tung)	generated/meshes/1_l_middle_finger_middle.STL
+assets/wuji/g1_wuji_retargeting_generated/1_l_middle_finger_proximal.STL	g1-wuji-retargeting (Yi-Shiuan Tung)	generated/meshes/1_l_middle_finger_proximal.STL
+assets/wuji/g1_wuji_retargeting_generated/1_l_middle_finger_proximal_abd.STL	g1-wuji-retargeting (Yi-Shiuan Tung)	generated/meshes/1_l_middle_finger_proximal_abd.STL
+assets/wuji/g1_wuji_retargeting_generated/1_l_pinky_middle.STL	g1-wuji-retargeting (Yi-Shiuan Tung)	generated/meshes/1_l_pinky_middle.STL
+assets/wuji/g1_wuji_retargeting_generated/1_l_pinky_proximal.STL	g1-wuji-retargeting (Yi-Shiuan Tung)	generated/meshes/1_l_pinky_proximal.STL
+assets/wuji/g1_wuji_retargeting_generated/1_l_pinky_proximal_abd.STL	g1-wuji-retargeting (Yi-Shiuan Tung)	generated/meshes/1_l_pinky_proximal_abd.STL
+assets/wuji/g1_wuji_retargeting_generated/1_l_ring_finger_middle.STL	g1-wuji-retargeting (Yi-Shiuan Tung)	generated/meshes/1_l_ring_finger_middle.STL
+assets/wuji/g1_wuji_retargeting_generated/1_l_ring_finger_proximal.STL	g1-wuji-retargeting (Yi-Shiuan Tung)	generated/meshes/1_l_ring_finger_proximal.STL
+assets/wuji/g1_wuji_retargeting_generated/1_l_ring_finger_proximal_abd.STL	g1-wuji-retargeting (Yi-Shiuan Tung)	generated/meshes/1_l_ring_finger_proximal_abd.STL
+assets/wuji/g1_wuji_retargeting_generated/1_l_thumb_middle.STL	g1-wuji-retargeting (Yi-Shiuan Tung)	generated/meshes/1_l_thumb_middle.STL
+assets/wuji/g1_wuji_retargeting_generated/1_l_thumb_proximal.STL	g1-wuji-retargeting (Yi-Shiuan Tung)	generated/meshes/1_l_thumb_proximal.STL
+assets/wuji/g1_wuji_retargeting_generated/1_l_thumb_proximal_abd.STL	g1-wuji-retargeting (Yi-Shiuan Tung)	generated/meshes/1_l_thumb_proximal_abd.STL
+assets/wuji/g1_wuji_retargeting_generated/1_l_wrist.STL	g1-wuji-retargeting (Yi-Shiuan Tung)	generated/meshes/1_l_wrist.STL
+assets/wuji/g1_wuji_retargeting_generated/2_r_index_finger_middle.STL	g1-wuji-retargeting (Yi-Shiuan Tung)	generated/meshes/2_r_index_finger_middle.STL
+assets/wuji/g1_wuji_retargeting_generated/2_r_index_finger_proximal.STL	g1-wuji-retargeting (Yi-Shiuan Tung)	generated/meshes/2_r_index_finger_proximal.STL
+assets/wuji/g1_wuji_retargeting_generated/2_r_index_finger_proximal_abd.STL	g1-wuji-retargeting (Yi-Shiuan Tung)	generated/meshes/2_r_index_finger_proximal_abd.STL
+assets/wuji/g1_wuji_retargeting_generated/2_r_middle_finger_middle.STL	g1-wuji-retargeting (Yi-Shiuan Tung)	generated/meshes/2_r_middle_finger_middle.STL
+assets/wuji/g1_wuji_retargeting_generated/2_r_middle_finger_proximal.STL	g1-wuji-retargeting (Yi-Shiuan Tung)	generated/meshes/2_r_middle_finger_proximal.STL
+assets/wuji/g1_wuji_retargeting_generated/2_r_middle_finger_proximal_abd.STL	g1-wuji-retargeting (Yi-Shiuan Tung)	generated/meshes/2_r_middle_finger_proximal_abd.STL
+assets/wuji/g1_wuji_retargeting_generated/2_r_pinky_middle.STL	g1-wuji-retargeting (Yi-Shiuan Tung)	generated/meshes/2_r_pinky_middle.STL
+assets/wuji/g1_wuji_retargeting_generated/2_r_pinky_proximal.STL	g1-wuji-retargeting (Yi-Shiuan Tung)	generated/meshes/2_r_pinky_proximal.STL
+assets/wuji/g1_wuji_retargeting_generated/2_r_pinky_proximal_abd.STL	g1-wuji-retargeting (Yi-Shiuan Tung)	generated/meshes/2_r_pinky_proximal_abd.STL
+assets/wuji/g1_wuji_retargeting_generated/2_r_ring_finger_middle.STL	g1-wuji-retargeting (Yi-Shiuan Tung)	generated/meshes/2_r_ring_finger_middle.STL
+assets/wuji/g1_wuji_retargeting_generated/2_r_ring_finger_proximal.STL	g1-wuji-retargeting (Yi-Shiuan Tung)	generated/meshes/2_r_ring_finger_proximal.STL
+assets/wuji/g1_wuji_retargeting_generated/2_r_ring_finger_proximal_abd.STL	g1-wuji-retargeting (Yi-Shiuan Tung)	generated/meshes/2_r_ring_finger_proximal_abd.STL
+assets/wuji/g1_wuji_retargeting_generated/2_r_thumb_middle.STL	g1-wuji-retargeting (Yi-Shiuan Tung)	generated/meshes/2_r_thumb_middle.STL
+assets/wuji/g1_wuji_retargeting_generated/2_r_thumb_proximal.STL	g1-wuji-retargeting (Yi-Shiuan Tung)	generated/meshes/2_r_thumb_proximal.STL
+assets/wuji/g1_wuji_retargeting_generated/2_r_thumb_proximal_abd.STL	g1-wuji-retargeting (Yi-Shiuan Tung)	generated/meshes/2_r_thumb_proximal_abd.STL
+assets/wuji/g1_wuji_retargeting_generated/2_r_wrist.STL	g1-wuji-retargeting (Yi-Shiuan Tung)	generated/meshes/2_r_wrist.STL
+assets/wuji/hand2_beta1/left/l_index_finger_distal.STL	wuji-description (Wuji hand2 beta1, via RFT/vega_wuji_isaac6/third_party)	hand2/hand2_beta1/body/meshes/left/l_index_finger_distal.STL
+assets/wuji/hand2_beta1/left/l_middle_finger_distal.STL	wuji-description (Wuji hand2 beta1, via RFT/vega_wuji_isaac6/third_party)	hand2/hand2_beta1/body/meshes/left/l_middle_finger_distal.STL
+assets/wuji/hand2_beta1/left/l_pinky_distal.STL	wuji-description (Wuji hand2 beta1, via RFT/vega_wuji_isaac6/third_party)	hand2/hand2_beta1/body/meshes/left/l_pinky_distal.STL
+assets/wuji/hand2_beta1/left/l_ring_finger_distal.STL	wuji-description (Wuji hand2 beta1, via RFT/vega_wuji_isaac6/third_party)	hand2/hand2_beta1/body/meshes/left/l_ring_finger_distal.STL
+assets/wuji/hand2_beta1/left/l_thumb_distal.STL	wuji-description (Wuji hand2 beta1, via RFT/vega_wuji_isaac6/third_party)	hand2/hand2_beta1/body/meshes/left/l_thumb_distal.STL
+assets/wuji/hand2_beta1/right/r_index_finger_distal.STL	wuji-description (Wuji hand2 beta1, via RFT/vega_wuji_isaac6/third_party)	hand2/hand2_beta1/body/meshes/right/r_index_finger_distal.STL
+assets/wuji/hand2_beta1/right/r_middle_finger_distal.STL	wuji-description (Wuji hand2 beta1, via RFT/vega_wuji_isaac6/third_party)	hand2/hand2_beta1/body/meshes/right/r_middle_finger_distal.STL
+assets/wuji/hand2_beta1/right/r_pinky_distal.STL	wuji-description (Wuji hand2 beta1, via RFT/vega_wuji_isaac6/third_party)	hand2/hand2_beta1/body/meshes/right/r_pinky_distal.STL
+assets/wuji/hand2_beta1/right/r_ring_finger_distal.STL	wuji-description (Wuji hand2 beta1, via RFT/vega_wuji_isaac6/third_party)	hand2/hand2_beta1/body/meshes/right/r_ring_finger_distal.STL
+assets/wuji/hand2_beta1/right/r_thumb_distal.STL	wuji-description (Wuji hand2 beta1, via RFT/vega_wuji_isaac6/third_party)	hand2/hand2_beta1/body/meshes/right/r_thumb_distal.STL

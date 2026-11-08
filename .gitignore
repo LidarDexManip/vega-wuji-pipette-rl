@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+MUJOCO_LOG.TXT
+runs/
+tb/
+# third-party meshes go here locally; never commit them
+assets/*
+!assets/asset_list.tsv

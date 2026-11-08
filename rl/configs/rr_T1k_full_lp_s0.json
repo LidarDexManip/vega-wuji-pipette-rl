@@ -1,0 +1,403 @@
+{
+ "task": "../../tasks/task_T1k_lp",
+ "out": "../runs/rr_T1k_full_lp_s0",
+ "num_envs": 4096,
+ "max_env_steps": 120000000.0,
+ "wall_hours": 1.75,
+ "ckpt_minutes": 60,
+ "latest_minutes": 5,
+ "dr": "dr_rr1.json",
+ "init_std": 0.1,
+ "reward_scale": 0.01,
+ "group_scale": {
+  "FR": 0.1,
+  "AR": 0.04,
+  "FL": 0.05,
+  "AL": 0.04
+ },
+ "extras": {
+  "real_cmd": true,
+  "ema_alpha": 0.5,
+  "holder": {
+   "stand_xy_mm": 50,
+   "stand_yaw_deg": 10,
+   "rack_xy_mm": 50,
+   "rack_yaw_deg": 10,
+   "blend_s": 1.5,
+   "meas_xy_mm": 5,
+   "meas_yaw_deg": 2,
+   "hole_pairs": [
+    [
+     "r0c0",
+     "r0c0"
+    ],
+    [
+     "r0c0",
+     "r0c1"
+    ],
+    [
+     "r0c0",
+     "r0c2"
+    ],
+    [
+     "r0c0",
+     "r0c3"
+    ],
+    [
+     "r0c0",
+     "r0c4"
+    ],
+    [
+     "r0c0",
+     "r1c0"
+    ],
+    [
+     "r0c0",
+     "r1c1"
+    ],
+    [
+     "r0c0",
+     "r1c2"
+    ],
+    [
+     "r0c0",
+     "r1c3"
+    ],
+    [
+     "r0c0",
+     "r1c4"
+    ],
+    [
+     "r0c1",
+     "r0c0"
+    ],
+    [
+     "r0c1",
+     "r0c1"
+    ],
+    [
+     "r0c1",
+     "r0c2"
+    ],
+    [
+     "r0c1",
+     "r0c3"
+    ],
+    [
+     "r0c1",
+     "r0c4"
+    ],
+    [
+     "r0c1",
+     "r1c0"
+    ],
+    [
+     "r0c1",
+     "r1c1"
+    ],
+    [
+     "r0c1",
+     "r1c2"
+    ],
+    [
+     "r0c1",
+     "r1c3"
+    ],
+    [
+     "r0c2",
+     "r0c0"
+    ],
+    [
+     "r0c2",
+     "r0c1"
+    ],
+    [
+     "r0c2",
+     "r0c2"
+    ],
+    [
+     "r0c2",
+     "r0c3"
+    ],
+    [
+     "r0c2",
+     "r0c4"
+    ],
+    [
+     "r0c2",
+     "r1c0"
+    ],
+    [
+     "r0c2",
+     "r1c1"
+    ],
+    [
+     "r0c2",
+     "r1c2"
+    ],
+    [
+     "r0c2",
+     "r1c3"
+    ],
+    [
+     "r0c2",
+     "r1c4"
+    ],
+    [
+     "r0c3",
+     "r0c0"
+    ],
+    [
+     "r0c3",
+     "r0c1"
+    ],
+    [
+     "r0c3",
+     "r0c2"
+    ],
+    [
+     "r0c3",
+     "r0c3"
+    ],
+    [
+     "r0c3",
+     "r0c4"
+    ],
+    [
+     "r0c3",
+     "r1c0"
+    ],
+    [
+     "r0c3",
+     "r1c1"
+    ],
+    [
+     "r0c3",
+     "r1c2"
+    ],
+    [
+     "r0c3",
+     "r1c3"
+    ],
+    [
+     "r0c3",
+     "r1c4"
+    ],
+    [
+     "r0c4",
+     "r0c0"
+    ],
+    [
+     "r0c4",
+     "r0c1"
+    ],
+    [
+     "r0c4",
+     "r0c2"
+    ],
+    [
+     "r0c4",
+     "r0c3"
+    ],
+    [
+     "r0c4",
+     "r0c4"
+    ],
+    [
+     "r0c4",
+     "r1c0"
+    ],
+    [
+     "r0c4",
+     "r1c1"
+    ],
+    [
+     "r0c4",
+     "r1c2"
+    ],
+    [
+     "r0c4",
+     "r1c3"
+    ],
+    [
+     "r0c4",
+     "r1c4"
+    ],
+    [
+     "r1c1",
+     "r0c0"
+    ],
+    [
+     "r1c1",
+     "r0c1"
+    ],
+    [
+     "r1c1",
+     "r0c2"
+    ],
+    [
+     "r1c1",
+     "r0c3"
+    ],
+    [
+     "r1c1",
+     "r0c4"
+    ],
+    [
+     "r1c1",
+     "r1c0"
+    ],
+    [
+     "r1c1",
+     "r1c1"
+    ],
+    [
+     "r1c1",
+     "r1c2"
+    ],
+    [
+     "r1c1",
+     "r1c3"
+    ],
+    [
+     "r1c1",
+     "r1c4"
+    ],
+    [
+     "r1c2",
+     "r0c1"
+    ],
+    [
+     "r1c2",
+     "r0c2"
+    ],
+    [
+     "r1c2",
+     "r0c3"
+    ],
+    [
+     "r1c2",
+     "r0c4"
+    ],
+    [
+     "r1c2",
+     "r1c0"
+    ],
+    [
+     "r1c2",
+     "r1c1"
+    ],
+    [
+     "r1c2",
+     "r1c2"
+    ],
+    [
+     "r1c2",
+     "r1c3"
+    ],
+    [
+     "r1c2",
+     "r1c4"
+    ],
+    [
+     "r1c3",
+     "r0c0"
+    ],
+    [
+     "r1c3",
+     "r0c1"
+    ],
+    [
+     "r1c3",
+     "r0c2"
+    ],
+    [
+     "r1c3",
+     "r0c3"
+    ],
+    [
+     "r1c3",
+     "r0c4"
+    ],
+    [
+     "r1c3",
+     "r1c0"
+    ],
+    [
+     "r1c3",
+     "r1c1"
+    ],
+    [
+     "r1c3",
+     "r1c2"
+    ],
+    [
+     "r1c3",
+     "r1c3"
+    ],
+    [
+     "r1c3",
+     "r1c4"
+    ],
+    [
+     "r1c4",
+     "r0c0"
+    ],
+    [
+     "r1c4",
+     "r0c1"
+    ],
+    [
+     "r1c4",
+     "r0c2"
+    ],
+    [
+     "r1c4",
+     "r0c3"
+    ],
+    [
+     "r1c4",
+     "r0c4"
+    ],
+    [
+     "r1c4",
+     "r1c0"
+    ],
+    [
+     "r1c4",
+     "r1c1"
+    ],
+    [
+     "r1c4",
+     "r1c2"
+    ],
+    [
+     "r1c4",
+     "r1c3"
+    ],
+    [
+     "r1c4",
+     "r1c4"
+    ]
+   ],
+   "engage_fix": true,
+   "hole_centres": "scene"
+  },
+  "w": {
+   "contact_set": 0.5,
+   "contact_graph": 0.5,
+   "wrench_support": 0.5,
+   "free_finger_acc": 1.0,
+   "action_rate": 0.5,
+   "elbow_height": 50.0,
+   "joint_margin": 1.0,
+   "finger_jerk": 0.2,
+   "thumb_prior": 0.5,
+   "posture": 0.1
+  },
+  "cmd_hz": 100
+ },
+ "_note": "T1_k teacher (11-06, user: first node run = full config): demo T1_k s0 (gate rrline-t1-v3, data gate PASS), task exported with latched fingers verbatim / free fingers smoothed; holders +-5 cm / +-10 deg per world, re-anchoring from a measured offset (5 mm / 2 deg); hole pairs: 88 training pairs (9 pick holes, r1c0 excluded; 10 place holes) with scene-frame centres and the engaged-blend fix; held out r0c1->r1c4, r1c2->r0c0; DR1; all reward terms incl. finger jerk 0.2, thumb prior 0.5, posture 0.1; 100 Hz command path. node round 1 (11-06): 4096 envs (smoke: 20.2k steps/s; per wall-clock equal to 8192 at 26.2k, more updates per sample), 1.2e8 steps, wall cap 1.75 h, ckpt every 2.5e7 steps, seed 0, RL base task_T1k_lp.",
+ "seed": 0,
+ "ckpt_steps": 25000000.0
+}

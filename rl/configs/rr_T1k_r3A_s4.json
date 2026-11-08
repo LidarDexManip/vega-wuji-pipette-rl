@@ -1,0 +1,410 @@
+{
+ "task": "../../tasks/task_T1k_still3_noff",
+ "out": "../runs/rr_T1k_r3A_s4",
+ "num_envs": 4096,
+ "max_env_steps": 200000000.0,
+ "wall_hours": 3.0,
+ "ckpt_minutes": 60,
+ "latest_minutes": 5,
+ "dr": "dr_rr1_kv3_zeta.json",
+ "init_std": 0.1,
+ "reward_scale": 0.01,
+ "group_scale": {
+  "FR": 0.1,
+  "AR": 0.04,
+  "FL": 0.05,
+  "AL": 0.04
+ },
+ "extras": {
+  "real_cmd": true,
+  "ema_alpha": 0.5,
+  "holder": {
+   "stand_xy_mm": 50,
+   "stand_yaw_deg": 10,
+   "rack_xy_mm": 50,
+   "rack_yaw_deg": 10,
+   "blend_s": 1.5,
+   "meas_xy_mm": 5,
+   "meas_yaw_deg": 2,
+   "hole_pairs": [
+    [
+     "r0c0",
+     "r0c0"
+    ],
+    [
+     "r0c0",
+     "r0c1"
+    ],
+    [
+     "r0c0",
+     "r0c2"
+    ],
+    [
+     "r0c0",
+     "r0c3"
+    ],
+    [
+     "r0c0",
+     "r0c4"
+    ],
+    [
+     "r0c0",
+     "r1c0"
+    ],
+    [
+     "r0c0",
+     "r1c1"
+    ],
+    [
+     "r0c0",
+     "r1c2"
+    ],
+    [
+     "r0c0",
+     "r1c3"
+    ],
+    [
+     "r0c0",
+     "r1c4"
+    ],
+    [
+     "r0c1",
+     "r0c0"
+    ],
+    [
+     "r0c1",
+     "r0c1"
+    ],
+    [
+     "r0c1",
+     "r0c2"
+    ],
+    [
+     "r0c1",
+     "r0c3"
+    ],
+    [
+     "r0c1",
+     "r0c4"
+    ],
+    [
+     "r0c1",
+     "r1c0"
+    ],
+    [
+     "r0c1",
+     "r1c1"
+    ],
+    [
+     "r0c1",
+     "r1c2"
+    ],
+    [
+     "r0c1",
+     "r1c3"
+    ],
+    [
+     "r0c2",
+     "r0c0"
+    ],
+    [
+     "r0c2",
+     "r0c1"
+    ],
+    [
+     "r0c2",
+     "r0c2"
+    ],
+    [
+     "r0c2",
+     "r0c3"
+    ],
+    [
+     "r0c2",
+     "r0c4"
+    ],
+    [
+     "r0c2",
+     "r1c0"
+    ],
+    [
+     "r0c2",
+     "r1c1"
+    ],
+    [
+     "r0c2",
+     "r1c2"
+    ],
+    [
+     "r0c2",
+     "r1c3"
+    ],
+    [
+     "r0c2",
+     "r1c4"
+    ],
+    [
+     "r0c3",
+     "r0c0"
+    ],
+    [
+     "r0c3",
+     "r0c1"
+    ],
+    [
+     "r0c3",
+     "r0c2"
+    ],
+    [
+     "r0c3",
+     "r0c3"
+    ],
+    [
+     "r0c3",
+     "r0c4"
+    ],
+    [
+     "r0c3",
+     "r1c0"
+    ],
+    [
+     "r0c3",
+     "r1c1"
+    ],
+    [
+     "r0c3",
+     "r1c2"
+    ],
+    [
+     "r0c3",
+     "r1c3"
+    ],
+    [
+     "r0c3",
+     "r1c4"
+    ],
+    [
+     "r0c4",
+     "r0c0"
+    ],
+    [
+     "r0c4",
+     "r0c1"
+    ],
+    [
+     "r0c4",
+     "r0c2"
+    ],
+    [
+     "r0c4",
+     "r0c3"
+    ],
+    [
+     "r0c4",
+     "r0c4"
+    ],
+    [
+     "r0c4",
+     "r1c0"
+    ],
+    [
+     "r0c4",
+     "r1c1"
+    ],
+    [
+     "r0c4",
+     "r1c2"
+    ],
+    [
+     "r0c4",
+     "r1c3"
+    ],
+    [
+     "r0c4",
+     "r1c4"
+    ],
+    [
+     "r1c1",
+     "r0c0"
+    ],
+    [
+     "r1c1",
+     "r0c1"
+    ],
+    [
+     "r1c1",
+     "r0c2"
+    ],
+    [
+     "r1c1",
+     "r0c3"
+    ],
+    [
+     "r1c1",
+     "r0c4"
+    ],
+    [
+     "r1c1",
+     "r1c0"
+    ],
+    [
+     "r1c1",
+     "r1c1"
+    ],
+    [
+     "r1c1",
+     "r1c2"
+    ],
+    [
+     "r1c1",
+     "r1c3"
+    ],
+    [
+     "r1c1",
+     "r1c4"
+    ],
+    [
+     "r1c2",
+     "r0c1"
+    ],
+    [
+     "r1c2",
+     "r0c2"
+    ],
+    [
+     "r1c2",
+     "r0c3"
+    ],
+    [
+     "r1c2",
+     "r0c4"
+    ],
+    [
+     "r1c2",
+     "r1c0"
+    ],
+    [
+     "r1c2",
+     "r1c1"
+    ],
+    [
+     "r1c2",
+     "r1c2"
+    ],
+    [
+     "r1c2",
+     "r1c3"
+    ],
+    [
+     "r1c2",
+     "r1c4"
+    ],
+    [
+     "r1c3",
+     "r0c0"
+    ],
+    [
+     "r1c3",
+     "r0c1"
+    ],
+    [
+     "r1c3",
+     "r0c2"
+    ],
+    [
+     "r1c3",
+     "r0c3"
+    ],
+    [
+     "r1c3",
+     "r0c4"
+    ],
+    [
+     "r1c3",
+     "r1c0"
+    ],
+    [
+     "r1c3",
+     "r1c1"
+    ],
+    [
+     "r1c3",
+     "r1c2"
+    ],
+    [
+     "r1c3",
+     "r1c3"
+    ],
+    [
+     "r1c3",
+     "r1c4"
+    ],
+    [
+     "r1c4",
+     "r0c0"
+    ],
+    [
+     "r1c4",
+     "r0c1"
+    ],
+    [
+     "r1c4",
+     "r0c2"
+    ],
+    [
+     "r1c4",
+     "r0c3"
+    ],
+    [
+     "r1c4",
+     "r0c4"
+    ],
+    [
+     "r1c4",
+     "r1c0"
+    ],
+    [
+     "r1c4",
+     "r1c1"
+    ],
+    [
+     "r1c4",
+     "r1c2"
+    ],
+    [
+     "r1c4",
+     "r1c3"
+    ],
+    [
+     "r1c4",
+     "r1c4"
+    ]
+   ],
+   "engage_fix": true,
+   "hole_centres": "scene"
+  },
+  "w": {
+   "contact_set": 0.5,
+   "contact_graph": 0.5,
+   "wrench_support": 0.5,
+   "free_finger_acc": 1.0,
+   "action_rate": 0.5,
+   "elbow_height": 50.0,
+   "joint_margin": 1.0,
+   "finger_jerk": 0.2,
+   "thumb_prior": 0.5,
+   "posture": 0.1,
+   "finger_band": 2.0,
+   "tube_tilt": 1.0,
+   "arm_band": 1.0,
+   "finger_still": 1.0,
+   "pipette_seat": 1.0
+  },
+  "cmd_hz": 100,
+  "clamp_after_ff": true,
+  "band_on_deviation": true
+ },
+ "_note": "ROUND 3A (prepared 11-06, NOT launched; updated after the shake diagnosis): R2 s2 config (base task_T1k_lp_noff, finger kd x3 DR 2.1-4.2) + clamp_after_ff (commanded arm target >= 0.1 rad after the velocity feed-forward; unit test test_arm_clamp.py) + tube_tilt 1.0 (tube axis tilt in the left hand while held, 1 = 2.9 deg; seat misses were ~8 deg -> jam ~5 mm high) + finger_band 2.0 (was 1.0; 4 cells 0.26-0.32 deg left). Right thumb NOT exempted from the damping: R2 s2 press was the best (53/64 from start). From scratch (R2b showed warm starts across base changes break the press). seed 4, 2e8 steps, 3.0 h cap. + arm_band 1.0 (causal 3-10 Hz band on the arm joints; 1 = 0.002 rad) + arm DR kv = sqrt(kp) x U(0.95, 1.4) (zeta >= 0.70; kp range kept 0.5-2). + base task_T1k_still3_noff (v3: transition speed per joint = what the finger drive can follow at kd x3) (fingers hold still between events, one minimum-jerk transition per event, both hands, closure windows untouched; no finger velocity FF) + finger_still 1.0 (finger speed where the reference finger is still; all 40 joints) + band_on_deviation (finger_band / arm_band on q - q_ref). + pipette_seat 1.0 (teacher-only: pipette pose vs its seated reference from 1 s before it is back in the stand to 1.5 s after; 1 = 5 mm or 2.9 deg).",
+ "seed": 4,
+ "ckpt_steps": 25000000.0
+}

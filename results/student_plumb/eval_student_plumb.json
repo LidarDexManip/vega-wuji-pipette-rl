@@ -1,0 +1,34 @@
+{
+ "layer": "RL env rollouts (MuJoCo Warp), deterministic actor mean",
+ "ckpt": "runs/rr_student_plumb/latest.pt",
+ "actor": "student (deployable obs)",
+ "dr": "on",
+ "n": 20,
+ "reach_end": 14,
+ "pipette_seated": 14,
+ "tube_seated": 5,
+ "press_ok_of_press_starts": "8/9",
+ "tube_in_hand": {
+  "drift_mm_p50_max": [
+   30.993,
+   66.78
+  ],
+  "axis_tilt_deg_p50_max": [
+   11.898,
+   20.441
+  ],
+  "spin_deg_p50_max (logged, deferred)": [
+   12.178,
+   20.517
+  ]
+ },
+ "natural": {
+  "free_finger_hp_rms_deg_p50_p95": [
+   2.709,
+   4.528
+  ],
+  "action_rate_mean_sq": 0.000688,
+  "elbow_minus_shoulder_cm_max": -1.194,
+  "arm_joint_margin_deg_min": 5.689
+ }
+}
