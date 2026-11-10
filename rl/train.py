@@ -44,6 +44,8 @@ env = E.BimanualGpuEnv(task, C['num_envs'], device=C['device'], seed=C['seed']+s
                        naconmax_per_world=C['naconmax_per_world'], starts=C['starts'], **kw)
 venv, runner = GT.make_runner(env, a, None)
 if latest.exists(): runner.load(str(latest), map_location=env.device); print('resumed from', latest, 'at', state['env_steps'], flush=True)
+import caps   # (11-09) optional action smoothness on the policy mean (config "caps"; logged as loss 'symmetry'); absent -> nothing changes
+if caps.attach(runner.alg, C.get('caps')): print('caps action smoothness attached:', C['caps'], flush=True)
 save_state(starts=state['starts']+1, status='running', config=dict(file=str(a0.config), C={k: (str(v) if isinstance(v, Path) else v) for k, v in C.items()}, env=env.cfg,
                                                                     ppo=GT.train_cfg(a), obs_dim=int(env.obs.shape[1]), valid_starts=len(env.valid_starts)))
 nf = torch.zeros(1, dtype=torch.long, device=env.device); orig = env._reward_and_termination

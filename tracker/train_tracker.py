@@ -21,7 +21,7 @@ DEF = dict(num_envs=1024, device='cuda:0', seed=0, max_env_steps=2e7, wall_hours
 
 p = argparse.ArgumentParser(); p.add_argument('config', type=Path); p.add_argument('--out', type=Path); p.add_argument('--minutes', type=float); a0 = p.parse_args()
 C = {**DEF, **json.loads(a0.config.read_text())}
-rel = lambda x: (x if Path(x).is_absolute() else (a0.config.parent/x)).resolve()
+rel = lambda x: (Path(x) if Path(x).is_absolute() else (a0.config.parent/x)).resolve()   # (11-09 fix: an absolute path was returned as str)
 task = rel(C['task']); out = a0.out or rel(C.get('out', 'runs/'+a0.config.stem)); out.mkdir(parents=True, exist_ok=True)
 dr = C['dr'] if isinstance(C['dr'], dict) or C['dr'] is None else json.loads(rel(C['dr']).read_text())
 a = SimpleNamespace(**{k: C[k] for k in ('steps_per_env', 'lr', 'init_std', 'no_value_clip', 'deployable')})
@@ -48,6 +48,8 @@ env = E.BimanualGpuEnv(task, C['num_envs'], device=C['device'], seed=C['seed']+s
                        naconmax_per_world=C['naconmax_per_world'], starts=C['starts'], **kw)
 venv, runner = GT.make_runner(env, a, None)
 if latest.exists(): runner.load(str(latest), map_location=env.device); print('resumed from', latest, 'at', state['env_steps'], flush=True)
+import caps   # (11-09) optional CAPS action smoothness on the policy mean (config "caps"; logged as loss 'symmetry'), as rl/train.py; absent -> nothing changes
+if caps.attach(runner.alg, C.get('caps')): print('caps action smoothness attached:', C['caps'], flush=True)
 save_state(starts=state['starts']+1, status='running', config=dict(file=str(a0.config), C={k: (str(v) if isinstance(v, Path) else v) for k, v in C.items()}, env=env.cfg,
                                                                     ppo=GT.train_cfg(a), obs_dim=int(env.obs.shape[1]), valid_starts=len(env.valid_starts)))
 nf = torch.zeros(1, dtype=torch.long, device=env.device); orig = env._reward_and_termination
@@ -82,6 +84,10 @@ try:
         if voc > 0 and its_at_level >= int(CUR.get('min_its_per_level', 20)) and len(succ_win) == int(CUR.get('window_its', 5)) and min(succ_win) >= float(CUR.get('success_threshold', .6)):
             voc = voc*float(CUR.get('factor', .8)); voc = 0. if voc < float(CUR.get('floor', .05)) else voc; env.set_voc(voc); its_at_level = 0; succ_win = []
             row['voc_change'] = voc
+        vz = TR.get('voc_zero_by_steps')   # (11-09) optional [s0, s1]: VOC <= a linear 1 -> 0 cap between env steps s0 and s1 (the success curriculum can go lower sooner)
+        if vz and voc > 0:
+            capv = min(1., max(0., (float(vz[1])-state['env_steps'])/(float(vz[1])-float(vz[0]))))
+            if voc > capv: voc = capv if capv >= float(CUR.get('floor', .05)) else 0.; env.set_voc(voc); row['voc_change'] = voc; row['voc_capped'] = True
         state['voc_scale'] = voc; state['its_at_level'] = its_at_level
         flog.write(json.dumps(row)+'\n'); flog.flush()
         print(json.dumps({k: row[k] for k in ('it', 'env_steps', 'wall_s', 'steps_per_s', 'action_std', 'success_fraction', 'mean_episode_s', 'nonfinite_worlds', 'voc_scale', 'free_success_fraction')}), flush=True)

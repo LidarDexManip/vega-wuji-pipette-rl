@@ -93,3 +93,64 @@ The 112 required meshes are listed, as paths only, in `assets/asset_list.tsv`. `
 ## 5. MANIFEST
 
 `MANIFEST.md` lists every file with its source path and size. It was cross-checked against `find`: no file is missing or extra.
+
+# AUDIT, second commit (2026-11-10)
+
+Scope: the round-4 (tc line) and kinematic-reference (KA / KB) work of 11-08 to 11-10. All checks ran locally; the evals behind the result files ran on the node and on a local RTX 4080.
+
+## 1. Secrets and infra
+
+**Text grep.** The section-1 pattern plus `/data/`, `/tmp/claude`, `miniconda` and the user names was run case-insensitively over every tracked text file except this one.
+
+- The remaining hits are all the Python matrix-multiply operator, e.g. `Jw@Jw.transpose`, `(p0-HC[k])@Rz.T`, or `@wp.func` in a docstring.
+- None is an email, host or path.
+
+**What was scrubbed:**
+
+| Original | Replaced by | Where |
+|---|---|---|
+| node code root | `<node_code>/` | `state.json` (`file`, `task`) and `eval/contact.json` (`metrics_config`) of the six new runs |
+| local checkout | `<repo>/` | `task` in `results/kin_tc_s5/vary/*_summary.json` |
+| home-dir tool paths | `<ffs-dir>/`, `blender` | usage lines of `perception/ffs_compare.py` and `render/blender_replay.py` |
+
+**Node scripts.** `node_setup.sh`, `node_launch.sh` and `node_eval.sh` hold no host, user, password or absolute path. They resolve everything relative to the repo.
+
+**Binary scan.** The full zip content of every tracked `*.pt` (including the six new `final.pt`): **0 hits**.
+
+**Videos.** The 26 new `.mp4` files:
+
+- Container and stream tags are only `major_brand`, `minor_version`, `compatible_brands`, `encoder=Lavf58.76.100`, `language`, `handler_name` and `vendor_id`.
+- A `strings` scan for user, host and paths: **0 hits**.
+- The burned-in labels show the policy, time and outcome only.
+
+**Excluded:**
+
+- `*.log`, `rc` and `done.marker` files, `latest.pt` and `model_*.pt`;
+- the rollout `world_*.npz` files;
+- `.blend` scenes, which embed the robot and lab meshes, so they fall under the mesh rule of section 4;
+- raw RealSense captures (`perception/snapshots/`, `perception/recordings/`);
+- the 175M-step midpoint renders;
+- per-policy single clips that the `compare_*` videos already contain.
+
+The `.gitignore` lists all of these.
+
+## 2. Sizes
+
+- 392 files, 526,928,126 bytes (about 503 MB) excluding `.git`.
+- This commit adds 306 MB:
+  - six `final.pt` at 20.3 MB each;
+  - videos, 212 MB in total for all tracked `.mp4`, old and new.
+- No file is over 95 MB. The largest new video is 18.3 MB (`videos/kin_ref_final/compare_world2.mp4`).
+
+## 3. Code
+
+- **Compile.** `python -m py_compile` on all 60 tracked `.py` files: **OK**. `render/blender_replay.py` imports `bpy` and runs only inside Blender, but `py_compile` does not import it.
+- **CPU unit tests:** `rl/test_arm_clamp.py`, `rl/test_contact_terms.py`, `rl/test_rate_terms.py` and `rl/test_caps.py` all **PASS**.
+
+## 4. Mesh files
+
+The `find` from section 4 again returns **0 files**. No `.blend` is tracked.
+
+## 5. MANIFEST
+
+`MANIFEST.md` was regenerated from `git ls-files`, giving 392 rows. Rows of the first commit keep their source and notes, with refreshed sizes; changed files are marked "updated 11-08..11-10".

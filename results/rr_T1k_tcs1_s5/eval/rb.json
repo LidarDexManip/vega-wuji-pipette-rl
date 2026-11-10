@@ -1,0 +1,230 @@
+{
+ "ckpt": "runs/rr_T1k_tcs1_s5/final.pt",
+ "config": "configs/rr_T1k_tcs1_s5.json",
+ "envs": 512,
+ "steps": 300,
+ "noise_std": 0.0,
+ "terms": {
+  "track_right_object": {
+   "mean": 7.88084,
+   "std": 0.33894
+  },
+  "track_left_object": {
+   "mean": 7.77736,
+   "std": 0.34481
+  },
+  "x_arm_band": {
+   "mean": -2.5736,
+   "std": 5.12286
+  },
+  "x_finger_band": {
+   "mean": -2.09296,
+   "std": 7.46216
+  },
+  "track_right_wrist": {
+   "mean": 1.88621,
+   "std": 0.1492
+  },
+  "track_right_world": {
+   "mean": 1.88495,
+   "std": 0.25293
+  },
+  "track_left_world": {
+   "mean": 1.85353,
+   "std": 0.23784
+  },
+  "track_left_wrist": {
+   "mean": 1.81124,
+   "std": 0.18123
+  },
+  "track_right_link": {
+   "mean": 0.99422,
+   "std": 0.01139
+  },
+  "track_left_link": {
+   "mean": 0.99404,
+   "std": 0.01333
+  },
+  "track_left_joint": {
+   "mean": 0.98757,
+   "std": 0.02074
+  },
+  "track_right_joint": {
+   "mean": 0.98097,
+   "std": 0.02408
+  },
+  "x_finger_still": {
+   "mean": -0.37837,
+   "std": 12.63665
+  },
+  "x_tube_tilt": {
+   "mean": -0.27747,
+   "std": 0.66847
+  },
+  "x_pipette_seat": {
+   "mean": -0.24555,
+   "std": 1.26962
+  },
+  "env_plunger": {
+   "mean": 0.22484,
+   "std": 0.61429
+  },
+  "x_wrench_margin": {
+   "mean": -0.03833,
+   "std": 0.07662
+  },
+  "x_contact_slip": {
+   "mean": -0.02675,
+   "std": 0.0626
+  },
+  "x_contact_drift": {
+   "mean": -0.0155,
+   "std": 0.048
+  },
+  "x_contact_keep": {
+   "mean": -0.00889,
+   "std": 0.02952
+  },
+  "x_finger_jerk": {
+   "mean": -0.00233,
+   "std": 0.04269
+  },
+  "x_thumb_prior": {
+   "mean": -0.00201,
+   "std": 0.00749
+  },
+  "x_posture": {
+   "mean": -0.00084,
+   "std": 0.00127
+  },
+  "env_smooth (-0.01 x)": {
+   "mean": -0.0,
+   "std": 0.0
+  },
+  "x_action_rate": {
+   "mean": -0.0,
+   "std": 0.0
+  },
+  "x_joint_margin": {
+   "mean": -0.0,
+   "std": 0.0
+  },
+  "x_elbow_height": {
+   "mean": 0.0,
+   "std": 0.0
+  }
+ },
+ "raw": {
+  "t__margin_req_pipette_N": {
+   "mean": 0.14140892028808594,
+   "p95": 0.8289451599121094
+  },
+  "t__margin_req_tube_N": {
+   "mean": 0.04940444231033325,
+   "p95": 0.12753000855445862
+  },
+  "t__margin_mean_pipette_N": {
+   "mean": 0.1506856083869934,
+   "p95": 0.8694190382957458
+  },
+  "t__margin_mean_tube_N": {
+   "mean": 0.12461457401514053,
+   "p95": 0.3067188262939453
+  },
+  "t_contact_graph": {
+   "mean": 0.8697625398635864,
+   "p95": 1.0
+  },
+  "t_wrench_support": {
+   "mean": 0.8337400555610657,
+   "p95": 0.9999998211860657
+  },
+  "t__missed_contact": {
+   "mean": 0.09178884327411652,
+   "p95": 0.5
+  },
+  "t__tube_tilt_deg": {
+   "mean": 1.4788239002227783,
+   "p95": 3.351877450942993
+  },
+  "p_contact_keep": {
+   "mean": 0.017775380983948708,
+   "p95": 0.10000000149011612
+  },
+  "p_contact_drift": {
+   "mean": 0.03100516088306904,
+   "p95": 0.12483830004930496
+  },
+  "p_contact_slip": {
+   "mean": 0.05349140986800194,
+   "p95": 0.1837751716375351
+  },
+  "p_wrench_margin": {
+   "mean": 0.07666338980197906,
+   "p95": 0.49696987867355347
+  },
+  "p_contact_set": {
+   "mean": 0.3868961036205292,
+   "p95": 0.8333333730697632
+  },
+  "p_free_finger_acc": {
+   "mean": 0.00037471140967682004,
+   "p95": 0.0012366207083687186
+  },
+  "p_finger_jerk": {
+   "mean": 0.011626200750470161,
+   "p95": 0.021268168464303017
+  },
+  "p_finger_band": {
+   "mean": 0.69765305519104,
+   "p95": 2.875065565109253
+  },
+  "p_thumb_prior": {
+   "mean": 0.004024278838187456,
+   "p95": 0.012639189139008522
+  },
+  "p_posture": {
+   "mean": 0.008362467400729656,
+   "p95": 0.03594984486699104
+  },
+  "p_finger_still": {
+   "mean": 0.37836816906929016,
+   "p95": 1.0274955034255981
+  },
+  "p_pipette_seat": {
+   "mean": 0.24555332958698273,
+   "p95": 1.4210785627365112
+  },
+  "p_arm_band": {
+   "mean": 2.5736002922058105,
+   "p95": 11.00232982635498
+  },
+  "p_tube_tilt": {
+   "mean": 0.27747291326522827,
+   "p95": 1.158137559890747
+  },
+  "p_action_rate": {
+   "mean": 1.49605327237623e-07,
+   "p95": 1.5218644477954513e-07
+  },
+  "p_torque_rate_arm": {
+   "mean": 0.19574595987796783,
+   "p95": 0.6787198185920715
+  },
+  "p_torque_rate_finger": {
+   "mean": 1.569648265838623,
+   "p95": 7.350575923919678
+  },
+  "p_elbow_height": {
+   "mean": 0.0,
+   "p95": 0.0
+  },
+  "p_joint_margin": {
+   "mean": 7.707203625306747e-11,
+   "p95": 0.0
+  }
+ },
+ "total_mean": 21.613182067871094,
+ "total_std": 16.37042999267578,
+ "sum_check_max_abs": 0.0001220703125
+}

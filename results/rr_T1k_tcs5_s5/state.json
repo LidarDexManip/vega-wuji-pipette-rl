@@ -1,0 +1,995 @@
+{
+ "env_steps": 200048640,
+ "wall_s": 11265.58404493332,
+ "it": 2035,
+ "status": "complete",
+ "starts": 1,
+ "ckpts": [
+  "model_25067520.pt",
+  "model_50036736.pt",
+  "model_75005952.pt",
+  "model_100073472.pt",
+  "model_125042688.pt",
+  "model_150011904.pt",
+  "model_175079424.pt",
+  "model_200048640.pt"
+ ],
+ "config": {
+  "file": "<node_code>/rl/configs/rr_T1k_tcs5_s5.json",
+  "C": {
+   "num_envs": 4096,
+   "device": "cuda:0",
+   "seed": 5,
+   "max_env_steps": 200000000.0,
+   "wall_hours": 10.0,
+   "ckpt_minutes": 60,
+   "latest_minutes": 5,
+   "steps_per_env": 24,
+   "lr": 0.0003,
+   "init_std": 0.1,
+   "arm_scale": null,
+   "finger_scale": null,
+   "group_scale": {
+    "FR": 0.1,
+    "AR": 0.04,
+    "FL": 0.05,
+    "AL": 0.04
+   },
+   "reward_scale": 0.01,
+   "no_value_clip": true,
+   "deployable": false,
+   "dr": "dr_rr1_kv3_zeta.json",
+   "extras": {
+    "real_cmd": true,
+    "ema_alpha": 0.5,
+    "holder": {
+     "stand_xy_mm": 50,
+     "stand_yaw_deg": 10,
+     "rack_xy_mm": 50,
+     "rack_yaw_deg": 10,
+     "blend_s": 1.5,
+     "meas_xy_mm": 5,
+     "meas_yaw_deg": 2,
+     "hole_pairs": [
+      [
+       "r0c0",
+       "r0c0"
+      ],
+      [
+       "r0c0",
+       "r0c1"
+      ],
+      [
+       "r0c0",
+       "r0c2"
+      ],
+      [
+       "r0c0",
+       "r0c3"
+      ],
+      [
+       "r0c0",
+       "r0c4"
+      ],
+      [
+       "r0c0",
+       "r1c0"
+      ],
+      [
+       "r0c0",
+       "r1c1"
+      ],
+      [
+       "r0c0",
+       "r1c2"
+      ],
+      [
+       "r0c0",
+       "r1c3"
+      ],
+      [
+       "r0c0",
+       "r1c4"
+      ],
+      [
+       "r0c1",
+       "r0c0"
+      ],
+      [
+       "r0c1",
+       "r0c1"
+      ],
+      [
+       "r0c1",
+       "r0c2"
+      ],
+      [
+       "r0c1",
+       "r0c3"
+      ],
+      [
+       "r0c1",
+       "r0c4"
+      ],
+      [
+       "r0c1",
+       "r1c0"
+      ],
+      [
+       "r0c1",
+       "r1c1"
+      ],
+      [
+       "r0c1",
+       "r1c2"
+      ],
+      [
+       "r0c1",
+       "r1c3"
+      ],
+      [
+       "r0c2",
+       "r0c0"
+      ],
+      [
+       "r0c2",
+       "r0c1"
+      ],
+      [
+       "r0c2",
+       "r0c2"
+      ],
+      [
+       "r0c2",
+       "r0c3"
+      ],
+      [
+       "r0c2",
+       "r0c4"
+      ],
+      [
+       "r0c2",
+       "r1c0"
+      ],
+      [
+       "r0c2",
+       "r1c1"
+      ],
+      [
+       "r0c2",
+       "r1c2"
+      ],
+      [
+       "r0c2",
+       "r1c3"
+      ],
+      [
+       "r0c2",
+       "r1c4"
+      ],
+      [
+       "r0c3",
+       "r0c0"
+      ],
+      [
+       "r0c3",
+       "r0c1"
+      ],
+      [
+       "r0c3",
+       "r0c2"
+      ],
+      [
+       "r0c3",
+       "r0c3"
+      ],
+      [
+       "r0c3",
+       "r0c4"
+      ],
+      [
+       "r0c3",
+       "r1c0"
+      ],
+      [
+       "r0c3",
+       "r1c1"
+      ],
+      [
+       "r0c3",
+       "r1c2"
+      ],
+      [
+       "r0c3",
+       "r1c3"
+      ],
+      [
+       "r0c3",
+       "r1c4"
+      ],
+      [
+       "r0c4",
+       "r0c0"
+      ],
+      [
+       "r0c4",
+       "r0c1"
+      ],
+      [
+       "r0c4",
+       "r0c2"
+      ],
+      [
+       "r0c4",
+       "r0c3"
+      ],
+      [
+       "r0c4",
+       "r0c4"
+      ],
+      [
+       "r0c4",
+       "r1c0"
+      ],
+      [
+       "r0c4",
+       "r1c1"
+      ],
+      [
+       "r0c4",
+       "r1c2"
+      ],
+      [
+       "r0c4",
+       "r1c3"
+      ],
+      [
+       "r0c4",
+       "r1c4"
+      ],
+      [
+       "r1c1",
+       "r0c0"
+      ],
+      [
+       "r1c1",
+       "r0c1"
+      ],
+      [
+       "r1c1",
+       "r0c2"
+      ],
+      [
+       "r1c1",
+       "r0c3"
+      ],
+      [
+       "r1c1",
+       "r0c4"
+      ],
+      [
+       "r1c1",
+       "r1c0"
+      ],
+      [
+       "r1c1",
+       "r1c1"
+      ],
+      [
+       "r1c1",
+       "r1c2"
+      ],
+      [
+       "r1c1",
+       "r1c3"
+      ],
+      [
+       "r1c1",
+       "r1c4"
+      ],
+      [
+       "r1c2",
+       "r0c1"
+      ],
+      [
+       "r1c2",
+       "r0c2"
+      ],
+      [
+       "r1c2",
+       "r0c3"
+      ],
+      [
+       "r1c2",
+       "r0c4"
+      ],
+      [
+       "r1c2",
+       "r1c0"
+      ],
+      [
+       "r1c2",
+       "r1c1"
+      ],
+      [
+       "r1c2",
+       "r1c2"
+      ],
+      [
+       "r1c2",
+       "r1c3"
+      ],
+      [
+       "r1c2",
+       "r1c4"
+      ],
+      [
+       "r1c3",
+       "r0c0"
+      ],
+      [
+       "r1c3",
+       "r0c1"
+      ],
+      [
+       "r1c3",
+       "r0c2"
+      ],
+      [
+       "r1c3",
+       "r0c3"
+      ],
+      [
+       "r1c3",
+       "r0c4"
+      ],
+      [
+       "r1c3",
+       "r1c0"
+      ],
+      [
+       "r1c3",
+       "r1c1"
+      ],
+      [
+       "r1c3",
+       "r1c2"
+      ],
+      [
+       "r1c3",
+       "r1c3"
+      ],
+      [
+       "r1c3",
+       "r1c4"
+      ],
+      [
+       "r1c4",
+       "r0c0"
+      ],
+      [
+       "r1c4",
+       "r0c1"
+      ],
+      [
+       "r1c4",
+       "r0c2"
+      ],
+      [
+       "r1c4",
+       "r0c3"
+      ],
+      [
+       "r1c4",
+       "r0c4"
+      ],
+      [
+       "r1c4",
+       "r1c0"
+      ],
+      [
+       "r1c4",
+       "r1c1"
+      ],
+      [
+       "r1c4",
+       "r1c2"
+      ],
+      [
+       "r1c4",
+       "r1c3"
+      ],
+      [
+       "r1c4",
+       "r1c4"
+      ]
+     ],
+     "engage_fix": true,
+     "hole_centres": "scene"
+    },
+    "w": {
+     "contact_set": 0.0,
+     "contact_graph": 0.0,
+     "wrench_support": 0.0,
+     "free_finger_acc": 0.0,
+     "action_rate": 0.5,
+     "elbow_height": 50.0,
+     "joint_margin": 1.0,
+     "finger_jerk": 0.2,
+     "thumb_prior": 0.5,
+     "posture": 0.1,
+     "finger_band": 3.0,
+     "tube_tilt": 1.0,
+     "arm_band": 1.0,
+     "finger_still": 1.0,
+     "pipette_seat": 1.0,
+     "contact_keep": 0.5,
+     "contact_drift": 0.5,
+     "contact_slip": 0.5,
+     "wrench_margin": 0.5
+    },
+    "cmd_hz": 100,
+    "clamp_after_ff": true,
+    "band_on_deviation": true,
+    "temporal_off_gates": [
+     "gate_grasp_shift_right",
+     "gate_grasp_shift_left",
+     "gate_regrasp"
+    ]
+   },
+   "nconmax": 200,
+   "njmax": 1600,
+   "naconmax_per_world": 400,
+   "starts": null,
+   "task": "../../tasks/task_T1k_still3_noff",
+   "out": "../runs/rr_T1k_tcs5_s5",
+   "_note": "11-09 ACTION-SMOOTHNESS variant of rr_T1k_tc_s5.json (everything else identical, seed 5): caps coeff 0.5 = temporal smoothness of the policy MEAN as a PPO loss term (caps.py; CAPS, Mysore et al. 2021), plugged into rsl_rl's symmetry hook, logged as loss 'symmetry' (1 = a change of 0.01 normalised action on every actuator per control step; cap 25). Replaces rr_T1k_tcq_s5's reward-side action_rate / torque_rate terms, which also penalised PPO's exploration noise (zero residual + noise 0.1: -68 per step vs ~ +21 tracking) and collapsed the std (0.10 -> 0.03; training success 0.42 vs 0.88 for tc at 1e8 steps). Calibration (caps_calib.py, R3B final): L 13.5 (p50 12.3, p95 33.8), actor-gradient norm of L 21.9 vs PPO surrogate 13.7 -> coeff 0.1 mild (0.16 x surrogate), 0.5 strong (0.8 x).",
+   "ckpt_steps": 25000000.0,
+   "caps": {
+    "coeff": 0.5,
+    "norm": 0.01,
+    "cap": 25.0,
+    "pairs": 8192
+   }
+  },
+  "env": {
+   "task": "<node_code>/tasks/task_T1k_still3_noff",
+   "num_envs": 4096,
+   "arm_scale": 0.08,
+   "finger_scale": 0.25,
+   "plunger_weight": 2.0,
+   "plunger_sigma": 0.003,
+   "control_dt": 0.02,
+   "nconmax": 200,
+   "njmax": 1600,
+   "naconmax": 1638400,
+   "dr": {
+    "kp_g1": [
+     0.5,
+     2.0
+    ],
+    "kv_g1": [
+     0.7,
+     1.4
+    ],
+    "kp_hand": [
+     0.7,
+     1.4
+    ],
+    "kv_hand": [
+     2.1,
+     4.2
+    ],
+    "friction_hand_object": [
+     0.7,
+     1.3
+    ],
+    "friction_pipette_tube": [
+     0.7,
+     1.3
+    ],
+    "object_mass": [
+     0.8,
+     1.2
+    ],
+    "joint_offset_g1": 0.01,
+    "joint_offset_hand": 0.02,
+    "object_start_xy_mm": 2.0,
+    "object_start_yaw_deg": 3.0,
+    "kv_g1_x_sqrt_kp": [
+     0.95,
+     1.4
+    ]
+   },
+   "reward_scale": 0.01,
+   "group_scale": {
+    "FR": 0.1,
+    "AR": 0.04,
+    "FL": 0.05,
+    "AL": 0.04
+   },
+   "command": "verbatim executed physics ctrl (no lead, no feed-forward)",
+   "feedforward": false,
+   "extras": {
+    "real_cmd": true,
+    "margin_rad": 0.1,
+    "speed_cap": 2.5,
+    "ema_alpha": 0.5,
+    "cmd_hz": 100,
+    "vel_ff": true,
+    "clamp_after_ff": true,
+    "band_on_deviation": true,
+    "event_gate": null,
+    "w": {
+     "contact_set": 0.0,
+     "contact_graph": 0.0,
+     "wrench_support": 0.0,
+     "free_finger_acc": 0.0,
+     "action_rate": 0.5,
+     "elbow_height": 50.0,
+     "joint_margin": 1.0,
+     "finger_jerk": 0.2,
+     "thumb_prior": 0.5,
+     "posture": 0.1,
+     "finger_band": 3.0,
+     "tube_tilt": 1.0,
+     "arm_band": 1.0,
+     "finger_still": 1.0,
+     "pipette_seat": 1.0,
+     "contact_keep": 0.5,
+     "contact_drift": 0.5,
+     "contact_slip": 0.5,
+     "wrench_margin": 0.5,
+     "torque_rate_arm": 0.0,
+     "torque_rate_finger": 0.0
+    },
+    "torque_rate_frac": 0.01,
+    "torque_rate_cap": 25.0,
+    "action_rate_norm": null,
+    "action_rate_cap": null,
+    "sigma_graph_mm": 3.0,
+    "force_alpha": 0.1,
+    "torque_length": 0.05,
+    "log": true,
+    "keep_hysteresis": 0.5,
+    "drift_mm": 1.0,
+    "slip_mm": 1.0,
+    "temporal_off_gates": [
+     "gate_grasp_shift_right",
+     "gate_grasp_shift_left",
+     "gate_regrasp"
+    ],
+    "margin_fmax": 3.0,
+    "margin_mu": 1.5,
+    "margin_rho": 0.3,
+    "margin_iters": 100,
+    "margin_every": 4,
+    "margin_gate": true,
+    "log_margin": false,
+    "holder": {
+     "stand_xy_mm": 50,
+     "stand_yaw_deg": 10,
+     "rack_xy_mm": 50,
+     "rack_yaw_deg": 10,
+     "blend_s": 1.5,
+     "meas_xy_mm": 5,
+     "meas_yaw_deg": 2,
+     "hole_pairs": [
+      [
+       "r0c0",
+       "r0c0"
+      ],
+      [
+       "r0c0",
+       "r0c1"
+      ],
+      [
+       "r0c0",
+       "r0c2"
+      ],
+      [
+       "r0c0",
+       "r0c3"
+      ],
+      [
+       "r0c0",
+       "r0c4"
+      ],
+      [
+       "r0c0",
+       "r1c0"
+      ],
+      [
+       "r0c0",
+       "r1c1"
+      ],
+      [
+       "r0c0",
+       "r1c2"
+      ],
+      [
+       "r0c0",
+       "r1c3"
+      ],
+      [
+       "r0c0",
+       "r1c4"
+      ],
+      [
+       "r0c1",
+       "r0c0"
+      ],
+      [
+       "r0c1",
+       "r0c1"
+      ],
+      [
+       "r0c1",
+       "r0c2"
+      ],
+      [
+       "r0c1",
+       "r0c3"
+      ],
+      [
+       "r0c1",
+       "r0c4"
+      ],
+      [
+       "r0c1",
+       "r1c0"
+      ],
+      [
+       "r0c1",
+       "r1c1"
+      ],
+      [
+       "r0c1",
+       "r1c2"
+      ],
+      [
+       "r0c1",
+       "r1c3"
+      ],
+      [
+       "r0c2",
+       "r0c0"
+      ],
+      [
+       "r0c2",
+       "r0c1"
+      ],
+      [
+       "r0c2",
+       "r0c2"
+      ],
+      [
+       "r0c2",
+       "r0c3"
+      ],
+      [
+       "r0c2",
+       "r0c4"
+      ],
+      [
+       "r0c2",
+       "r1c0"
+      ],
+      [
+       "r0c2",
+       "r1c1"
+      ],
+      [
+       "r0c2",
+       "r1c2"
+      ],
+      [
+       "r0c2",
+       "r1c3"
+      ],
+      [
+       "r0c2",
+       "r1c4"
+      ],
+      [
+       "r0c3",
+       "r0c0"
+      ],
+      [
+       "r0c3",
+       "r0c1"
+      ],
+      [
+       "r0c3",
+       "r0c2"
+      ],
+      [
+       "r0c3",
+       "r0c3"
+      ],
+      [
+       "r0c3",
+       "r0c4"
+      ],
+      [
+       "r0c3",
+       "r1c0"
+      ],
+      [
+       "r0c3",
+       "r1c1"
+      ],
+      [
+       "r0c3",
+       "r1c2"
+      ],
+      [
+       "r0c3",
+       "r1c3"
+      ],
+      [
+       "r0c3",
+       "r1c4"
+      ],
+      [
+       "r0c4",
+       "r0c0"
+      ],
+      [
+       "r0c4",
+       "r0c1"
+      ],
+      [
+       "r0c4",
+       "r0c2"
+      ],
+      [
+       "r0c4",
+       "r0c3"
+      ],
+      [
+       "r0c4",
+       "r0c4"
+      ],
+      [
+       "r0c4",
+       "r1c0"
+      ],
+      [
+       "r0c4",
+       "r1c1"
+      ],
+      [
+       "r0c4",
+       "r1c2"
+      ],
+      [
+       "r0c4",
+       "r1c3"
+      ],
+      [
+       "r0c4",
+       "r1c4"
+      ],
+      [
+       "r1c1",
+       "r0c0"
+      ],
+      [
+       "r1c1",
+       "r0c1"
+      ],
+      [
+       "r1c1",
+       "r0c2"
+      ],
+      [
+       "r1c1",
+       "r0c3"
+      ],
+      [
+       "r1c1",
+       "r0c4"
+      ],
+      [
+       "r1c1",
+       "r1c0"
+      ],
+      [
+       "r1c1",
+       "r1c1"
+      ],
+      [
+       "r1c1",
+       "r1c2"
+      ],
+      [
+       "r1c1",
+       "r1c3"
+      ],
+      [
+       "r1c1",
+       "r1c4"
+      ],
+      [
+       "r1c2",
+       "r0c1"
+      ],
+      [
+       "r1c2",
+       "r0c2"
+      ],
+      [
+       "r1c2",
+       "r0c3"
+      ],
+      [
+       "r1c2",
+       "r0c4"
+      ],
+      [
+       "r1c2",
+       "r1c0"
+      ],
+      [
+       "r1c2",
+       "r1c1"
+      ],
+      [
+       "r1c2",
+       "r1c2"
+      ],
+      [
+       "r1c2",
+       "r1c3"
+      ],
+      [
+       "r1c2",
+       "r1c4"
+      ],
+      [
+       "r1c3",
+       "r0c0"
+      ],
+      [
+       "r1c3",
+       "r0c1"
+      ],
+      [
+       "r1c3",
+       "r0c2"
+      ],
+      [
+       "r1c3",
+       "r0c3"
+      ],
+      [
+       "r1c3",
+       "r0c4"
+      ],
+      [
+       "r1c3",
+       "r1c0"
+      ],
+      [
+       "r1c3",
+       "r1c1"
+      ],
+      [
+       "r1c3",
+       "r1c2"
+      ],
+      [
+       "r1c3",
+       "r1c3"
+      ],
+      [
+       "r1c3",
+       "r1c4"
+      ],
+      [
+       "r1c4",
+       "r0c0"
+      ],
+      [
+       "r1c4",
+       "r0c1"
+      ],
+      [
+       "r1c4",
+       "r0c2"
+      ],
+      [
+       "r1c4",
+       "r0c3"
+      ],
+      [
+       "r1c4",
+       "r0c4"
+      ],
+      [
+       "r1c4",
+       "r1c0"
+      ],
+      [
+       "r1c4",
+       "r1c1"
+      ],
+      [
+       "r1c4",
+       "r1c2"
+      ],
+      [
+       "r1c4",
+       "r1c3"
+      ],
+      [
+       "r1c4",
+       "r1c4"
+      ]
+     ],
+     "engage_fix": true,
+     "hole_centres": "scene"
+    }
+   }
+  },
+  "ppo": {
+   "num_steps_per_env": 24,
+   "save_interval": 1000000000,
+   "obs_groups": {
+    "actor": [
+     "policy"
+    ],
+    "critic": [
+     "policy"
+    ]
+   },
+   "logger": "tensorboard",
+   "check_for_nan": true,
+   "algorithm": {
+    "class_name": "PPO",
+    "num_learning_epochs": 5,
+    "num_mini_batches": 4,
+    "clip_param": 0.2,
+    "gamma": 0.99,
+    "lam": 0.95,
+    "value_loss_coef": 1.0,
+    "entropy_coef": 0.001,
+    "learning_rate": 0.0003,
+    "max_grad_norm": 1.0,
+    "schedule": "adaptive",
+    "desired_kl": 0.01,
+    "use_clipped_value_loss": false
+   },
+   "actor": {
+    "class_name": "MLPModel",
+    "hidden_dims": [
+     512,
+     256,
+     128
+    ],
+    "activation": "elu",
+    "obs_normalization": true,
+    "distribution_cfg": {
+     "class_name": "GaussianDistribution",
+     "init_std": 0.1,
+     "std_type": "scalar"
+    }
+   },
+   "critic": {
+    "class_name": "MLPModel",
+    "hidden_dims": [
+     512,
+     512,
+     256,
+     128
+    ],
+    "activation": "elu",
+    "obs_normalization": true
+   }
+  },
+  "obs_dim": 1140,
+  "valid_starts": 1199
+ },
+ "reason": null
+}

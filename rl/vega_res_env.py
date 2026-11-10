@@ -393,7 +393,7 @@ class BimanualGpuEnv:
             else: cmd = self.cmd_sim[(base+s).clamp(max=len(self.cmd_sim)-1)]+rapp
             if off is not None: cmd = cmd-off
             torch.clamp(X.arm_command(self, cmd), self.lo, self.hi, out=self.ctrl)
-            self._launch(self.g_step); self._fold_stats()
+            self._launch(self.g_step); self._fold_stats(); X.substep_end(self)   # (11-09) accumulates the actuator torque for the torque-rate terms
             if self.substep_hook is not None: self.substep_hook(s)
         self._launch(self.g_kin)
         self.frame += X.frame_advance(self); self.episode_length_buf += 1   # (11-06) frame_step, or less while a release / closure gate holds the reference clock
@@ -439,7 +439,8 @@ class BimanualGpuEnv:
             je = (q[:, self.fing_t[s]]-self.qfing_ref[s][k])/self.jrange[s]
             obj_t = torch.exp(-(axis_err.mean(1)/.04)**2); link_t = torch.exp(-(le/.025)**2).mean(1); joint_t = torch.exp(-(je/.1)**2).mean(1)
             wrist_t = 2*torch.exp(-(wp_/.03)**2-(wr_/.15)**2); world_t = 2*torch.exp(-(wpos/.04)**2-(wang/.3)**2)
-            reward += 8*obj_t+link_t+joint_t+wrist_t+world_t
+            tw = self.xcfg['track_w']   # (11-09) configurable, defaults 8 / 1 / 1 / 1 / 1 = the original
+            reward += tw['object']*obj_t+tw['link']*link_t+tw['joint']*joint_t+tw['wrist']*wrist_t+tw['world']*world_t
             v = self.qvel[:, self.obj_v[s]:self.obj_v[s]+6]
             conds = torch.stack([pos > .05, ang > math.pi/4, axis_err.max(1).values > .05, wpos > .05, wang > math.pi/4,
                                  O[:, 2, 3] < .06, v[:, :3].norm(dim=-1) > 10, v[:, 3:].norm(dim=-1) > 500, ~finite], 1)

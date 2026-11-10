@@ -28,7 +28,7 @@ r = np.load(task/'reference.npz'); t = r['timestamps']; nfr = len(t)
 starts = [k-(k % 2) for k in np.arange(0, nfr-200, int(round(a0.every_s/.01)))]*a0.repeat; N = len(starts)
 if a0.from_start: starts = [0]*a0.from_start; N = len(starts)
 kw = dict(dr=dr, extras=C.get('extras', {}), reward_scale=C.get('reward_scale', .01))
-for k in ('arm_scale', 'finger_scale', 'group_scale'):
+for k in ('arm_scale', 'finger_scale', 'group_scale', 'thumb_press_scale', 'plunger_weight'):   # (11-09) tracker configs: must match training
     if C.get(k) is not None: kw[k] = C[k]
 if a0.student: kw['obs_mode'] = 'deployable'
 env = E.BimanualGpuEnv(task, N, seed=123, nconmax=C.get('nconmax', 200), njmax=C.get('njmax', 1600), naconmax_per_world=C.get('naconmax_per_world', 400),

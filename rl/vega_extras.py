@@ -10,8 +10,28 @@ import rewards as RW
 
 DEFAULT = {'real_cmd': True, 'margin_rad': .1, 'speed_cap': 2.5, 'ema_alpha': None, 'cmd_hz': None, 'vel_ff': True, 'clamp_after_ff': False, 'band_on_deviation': False, 'event_gate': None,
            'w': {'contact_set': 0., 'contact_graph': 0., 'wrench_support': 0., 'free_finger_acc': 0., 'action_rate': 0., 'elbow_height': 50., 'joint_margin': 0.,
-                 'finger_jerk': 0., 'thumb_prior': 0., 'posture': 0., 'finger_band': 0., 'tube_tilt': 0., 'arm_band': 0., 'finger_still': 0., 'pipette_seat': 0.},
-           'sigma_graph_mm': 3., 'force_alpha': .1, 'torque_length': .05, 'log': True}
+                 'finger_jerk': 0., 'thumb_prior': 0., 'posture': 0., 'finger_band': 0., 'tube_tilt': 0., 'arm_band': 0., 'finger_still': 0., 'pipette_seat': 0.,
+                 'contact_keep': 0., 'contact_drift': 0., 'contact_slip': 0., 'wrench_margin': 0., 'torque_rate_arm': 0., 'torque_rate_finger': 0.},
+           # (11-09) torque rate (torque_rate_terms): change of the control-step mean actuator torque (averaged over the substeps, so nothing
+           # above 25 Hz aliases in) between control steps, / (torque_rate_frac x the actuator's torque limit), squared, mean over the arm /
+           # finger actuators, capped at torque_rate_cap. action_rate_norm (None = the old raw rad^2): action rate on the normalised actions,
+           # 1 = a change of action_rate_norm per control step on every actuator; both 0 on the first step after a reset
+           'torque_rate_frac': .01, 'torque_rate_cap': 25., 'action_rate_norm': None, 'action_rate_cap': None,
+           'sigma_graph_mm': 3., 'force_alpha': .1, 'torque_length': .05, 'log': True,
+           # (11-08) reference-free contact stability between consecutive control steps (contact_temporal): a link is in contact when its normal
+           # force > force_alpha x object weight and stays in contact until it drops below keep_hysteresis x that; drift / slip normalised so
+           # 1 = drift_mm / slip_mm per control step
+           'keep_hysteresis': .5, 'drift_mm': 1., 'slip_mm': 1.,
+           # reference.npz phase gates (task timeline, not contact labels) during which the three are off, e.g. deliberate in-hand regrasps
+           'temporal_off_gates': [],
+           # (11-08) task-wrench margin (margin_term): per-contact normal force <= margin_fmax (N), circular friction cones mu = margin_mu,
+           # disturbance margin_rho (N; torques as tau / torque_length); solved every margin_every control steps (held in between), only while the
+           # reference holds the object (gate_pipette_held / gate_tube_held) if margin_gate; log_margin computes it for logging at weight 0
+           'margin_fmax': 3., 'margin_mu': 1.5, 'margin_rho': .3, 'margin_iters': 100, 'margin_every': 4, 'margin_gate': True, 'log_margin': False,
+           # (11-09) weights of the base tracking terms per side (vega_res_env._reward_and_termination): object = object axis points in the wrist
+           # frame (grasp), link / joint = finger links in the wrist frame / finger joints, wrist = wrist world pose, world = object world pose;
+           # wrist / world carry their own x2 inside the term; the defaults are the original hard-coded weights (unchanged reward)
+           'track_w': {'object': 8., 'link': 1., 'joint': 1., 'wrist': 1., 'world': 1.}}
 
 
 def merge(a, b):
@@ -34,12 +54,14 @@ def init(env, cfg):
     env.x_ffr = torch.as_tensor(-m.actuator_biasprm[arm, 2]/np.maximum(m.actuator_gainprm[arm, 0], 1e-9), dtype=torch.float32, device=dev)
     env.x_elbow = torch.as_tensor([m.body('L_arm_l4').id, m.body('R_arm_l4').id], device=dev); env.x_shoulder = torch.as_tensor([m.body('L_arm_l1').id, m.body('R_arm_l1').id], device=dev)
     env.x_q1 = None; env.x_q2 = None; env.x_q3 = None
+    torque_init(env)
     # contacts (Jiming terms) and the free-finger mask from the physics-demo labels
     cp = env.task/'contact_ref.npz'; env.x_cref = None
     if cp.exists():
         z = np.load(cp, allow_pickle=True); links = [str(x) for x in z['links']]; li = {n: i for i, n in enumerate(links)}
         T = lambda x: torch.as_tensor(np.asarray(x), dtype=torch.float32, device=dev)
-        env.x_cref = {'mask': torch.as_tensor(z['mask'], device=dev), 'pts': T(z['pts']), 'u': T(z['u_req']), 'free': T(z['free_mask']), 'fing_acts': torch.as_tensor(z['fing_acts'], device=dev).long()}
+        env.x_cref = {'mask': torch.as_tensor(z['mask'], device=dev), 'pts': T(z['pts']), 'u': T(z['u_req']), 'free': T(z['free_mask']), 'fing_acts': torch.as_tensor(z['fing_acts'], device=dev).long(),
+                      'wn': T(z['w_req_norm']) if 'w_req_norm' in z.files else torch.ones(len(z['u_req']), 2, device=dev)}
         def subtree(root):
             s = {root}
             for b in range(m.nbody):
@@ -62,6 +84,60 @@ def init(env, cfg):
         tt = env.wp.to_torch; d = env.d
         env.x_cgeom, env.x_cworld = tt(d.contact.geom), tt(d.contact.worldid); env.x_cpos, env.x_cframe, env.x_cefc = tt(d.contact.pos), tt(d.contact.frame), tt(d.contact.efc_address)
         env.x_force = tt(d.efc.force); env.x_xipos = tt(d.xipos)
+        temporal_init(env)
+
+
+def torque_init(env):
+    """(11-09) state of torque_rate_terms: a view of the actuator torques (nworld, nu), their per-control-step sum, the previous step's mean."""
+    m = env.mjm; dev = env.device; N, nu = env.num_envs, env.nu
+    env.x_trq = env.wp.to_torch(env.d.actuator_force); env.x_tsum = torch.zeros(N, nu, device=dev); env.x_tn = 0
+    env.x_tprev = torch.zeros(N, nu, device=dev); env.x_tvalid = torch.zeros(N, dtype=torch.bool, device=dev)
+    env.x_tmax = torch.as_tensor(np.abs(m.actuator_forcerange).max(1), dtype=torch.float32, device=dev).clamp_min(1e-6)
+    env.x_fing = torch.as_tensor([i for i, n in enumerate(env.action_names) if n.startswith(('r_', 'l_'))], device=dev)
+
+
+def substep_end(env):
+    """Called after every physics substep (vega_res_env.step)."""
+    if getattr(env, 'x_trq', None) is not None: env.x_tsum += env.x_trq; env.x_tn += 1
+
+
+def torque_rate_terms(env):
+    """(11-09, user: shivering of the wrists and of the fingers not in contact) Penalties (N,): torque_rate_arm / torque_rate_finger = mean over
+    the arm / finger actuators of ((tau_t - tau_{t-1}) / (torque_rate_frac x torque limit))^2, tau_t the mean actuator torque over control step t
+    (the substep average is an anti-alias low-pass: any chatter up to 25 Hz is seen, the PD ringing above it is not). Capped at torque_rate_cap.
+    A steady grip or gravity load costs nothing (constant torque); the first step after a reset costs nothing."""
+    X = env.xcfg; z = torch.zeros(env.num_envs, device=env.device)
+    if getattr(env, 'x_trq', None) is None or env.x_tn == 0: return {'torque_rate_arm': z, 'torque_rate_finger': z}
+    tq = env.x_tsum/env.x_tn; d = (tq-env.x_tprev)/(float(X['torque_rate_frac'])*env.x_tmax); cap = float(X['torque_rate_cap'])
+    out = {'torque_rate_arm': (d[:, env.x_arm]**2).mean(1).clamp(max=cap), 'torque_rate_finger': (d[:, env.x_fing]**2).mean(1).clamp(max=cap)}
+    out = {n_: torch.where(env.x_tvalid, torch.nan_to_num(t, 0., 0., 0.), z) for n_, t in out.items()}
+    env.x_tprev = tq; env.x_tsum = torch.zeros_like(env.x_tsum); env.x_tn = 0; env.x_tvalid = torch.ones_like(env.x_tvalid)
+    return out
+
+
+def action_rate_term(env, r):
+    """action_rate: old form mean((r - r_prev)^2) in rad^2 when action_rate_norm is None (configs before 11-09: numerically ~1e-5, i.e. off);
+    else mean(((r - r_prev) / (scale x action_rate_norm))^2) on the normalised actions, capped at action_rate_cap, 0 on the first step after a reset."""
+    an = env.xcfg.get('action_rate_norm')
+    if not an: return RW.action_rate(r, env.prev)
+    s = (env.scale*float(an)).clamp_min(1e-9)
+    v = RW.action_rate(r/s, env.prev/s)
+    if env.xcfg.get('action_rate_cap'): v = v.clamp(max=float(env.xcfg['action_rate_cap']))   # rare jumps (raw max ~1200) would dominate the variance
+    return torch.where(env.episode_length_buf <= 1, torch.zeros_like(v), v)
+
+
+def temporal_init(env):
+    """(11-08) state for contact_temporal / margin_term, and the plunger slide (contacts(rest_plunger=True) undo its stroke)."""
+    m = env.mjm; dev = env.device; N, L = env.num_envs, env.x_L
+    assert 0. < env.xcfg['keep_hysteresis'] <= 1., 'keep_hysteresis is the release threshold as a fraction of the contact threshold'
+    env.x_gb = torch.as_tensor(m.geom_bodyid, device=dev).long(); env.x_plb = -1
+    try:
+        b, j = m.body('pipette_plunger').id, m.joint('pipette_plunger').id
+        env.x_plb, env.x_plq, env.x_plq0 = b, int(m.jnt_qposadr[j]), float(m.qpos0[m.jnt_qposadr[j]])
+        env.x_plax = torch.as_tensor(m.jnt_axis[j], dtype=torch.float32, device=dev)
+    except KeyError: pass
+    env.x_kon = torch.zeros(N, L, dtype=torch.bool, device=dev); env.x_kpts = torch.zeros(N, L, 3, device=dev); env.x_kvalid = torch.zeros(N, dtype=torch.bool, device=dev)
+    env.x_mdreq = torch.zeros(N, 2, device=dev); env.x_mdmean = torch.zeros(N, 2, device=dev); env.x_mstep = 0; env.x_mgate = None
 
 
 def reset(env, ids):
@@ -69,6 +145,9 @@ def reset(env, ids):
     env.x_rlast[ids] = 0; env.x_rprev[ids] = 0; env.x_tick[ids] = env.ctrl[ids][:, env.x_arm]; env.x_tickq[ids] = env.x_tick[ids]
     if env.x_q1 is not None: env.x_q1[ids] = env.qpos[ids][:, env.aq]; env.x_q2[ids] = env.x_q1[ids]
     if getattr(env, 'x_q3', None) is not None: env.x_q3[ids] = env.x_q1[ids]
+    if getattr(env, 'x_tvalid', None) is not None: env.x_tvalid[ids] = False   # (11-09) no previous torque right after a reset
+    if getattr(env, 'x_kvalid', None) is not None:   # (11-08) no "previous step" right after a reset; stale margins cleared
+        env.x_kvalid[ids] = False; env.x_kon[ids] = False; env.x_mdreq[ids] = 0; env.x_mdmean[ids] = 0
 
 
 def smooth_residual(env, r):
@@ -112,7 +191,11 @@ def arm_command(env, cmd):
     cmd = cmd.clone(); cmd[:, ia] = env.x_tick; return cmd
 
 
-def contacts(env):
+def contacts(env, alpha=None, rest_plunger=False):
+    """Hand-link contacts on their own side's object with normal force > alpha (default force_alpha) x object weight: per link (N, L) mask and
+    force-weighted mean contact point in the object frame, plus the raw contacts (normal, position, world, side).
+    rest_plunger (11-08): points on the plunger are taken with the plunger stroke undone (on the plunger as if at rest), so pressing the plunger
+    does not count as the thumb moving relative to the other fingers."""
     n = int(env.nacon.reshape(-1)[0]); N = env.num_envs; L = env.x_L; dev = env.device
     cur = torch.zeros(N, L, dtype=torch.bool, device=dev); pts = torch.zeros(N, L, 3, device=dev); wsum = torch.zeros(N, L, device=dev)
     empty = (cur, pts, (torch.zeros(0, 3, device=dev), torch.zeros(0, 3, device=dev), torch.zeros(0, dtype=torch.long, device=dev), torch.zeros(0, dtype=torch.long, device=dev)))
@@ -121,21 +204,91 @@ def contacts(env):
     l0, l1 = env.x_gl[g[:, 0]], env.x_gl[g[:, 1]]; s0, s1 = env.x_gs[g[:, 0]], env.x_gs[g[:, 1]]
     link = torch.where(l0 >= 0, l0, l1); side = torch.where(l0 >= 0, s1, s0); sgn = torch.where(l0 >= 0, 1., -1.)
     ok = (link >= 0) & (side >= 0); ok = ok & (env.x_lside[link.clamp_min(0)] == side)
-    thr = env.xcfg['force_alpha']*env.x_mass*9.81; ok = ok & (f > thr[side.clamp_min(0)])
+    thr = (env.xcfg['force_alpha'] if alpha is None else alpha)*env.x_mass*9.81; ok = ok & (f > thr[side.clamp_min(0)])
     if not ok.any(): return empty
+    og = torch.where(l0 >= 0, g[:, 1], g[:, 0])[ok]                    # the object-side geom of each contact
     w, link, side, f, sgn = w[ok], link[ok], side[ok], f[ok], sgn[ok]
     pos = env.x_cpos[:n][ok]; nrm = env.x_cframe[:n][ok][:, 0]*sgn[:, None]
     cur.index_put_((w, link), torch.ones_like(w, dtype=torch.bool))
-    ob = env.x_objb[side]; Rw = env.xmat[w, ob]; po = env.xpos[w, ob]; loc = ((pos-po)[:, None]@Rw)[:, 0]
+    ob = env.x_objb[side]; Rw = env.xmat[w, ob]; po = env.xpos[w, ob]; rel = pos-po
+    if rest_plunger and getattr(env, 'x_plb', -1) >= 0:
+        onp = (env.x_gb[og] == env.x_plb)[:, None]; ax = env.xmat[w, env.x_plb]@env.x_plax      # slide axis in the world (the slide does not rotate the body)
+        rel = rel-torch.where(onp, ax*(env.qpos[w, env.x_plq]-env.x_plq0)[:, None], torch.zeros_like(rel))
+    loc = (rel[:, None]@Rw)[:, 0]
     flat = w*L+link; pts.view(-1, 3).index_add_(0, flat, loc*f[:, None]); wsum.view(-1).index_add_(0, flat, f)
     return cur, pts/wsum.clamp_min(1e-9)[..., None], (nrm, pos, w, side)
+
+
+def contact_temporal(env, cur, k=None):
+    """(11-08, user) Reference-free contact stability between consecutive control steps, from the policy's own contacts (no demo labels).
+    State per link: in contact when cur (force > force_alpha x weight), and stays in contact until the force drops below keep_hysteresis x that
+    (so a light touch hovering at the threshold is not counted as on / off chatter). Penalties (N,), each the mean of the two hands, 0 on the first
+    step after a reset:
+      contact_keep  -- fraction of the previous step's contacts that are lost now (events: a deliberate release costs one step, chatter every flip);
+      contact_drift -- mean |d_ij(t) - d_ij(t-1)| over pairs of links in contact at both steps (object-frame points, plunger stroke undone),
+                       / drift_mm (1 = 1 mm per step), capped at 5: the grasp shape on the object should not change;
+      contact_slip  -- mean |p_i(t) - p_i(t-1)| of each such link's point on the object / slip_mm, capped at 5: catches the whole grasp sliding
+                       along the object (pairwise distances do not change then).
+    A link that is not in contact costs nothing, so these never reward touching more; pair them with a term that does (tracking, wrench_margin).
+    temporal_off_gates: names of reference.npz gates (frame k) during which all three are 0 (the state is still updated)."""
+    X = env.xcfg; z = torch.zeros(env.num_envs, device=env.device)
+    lo, pts, _ = contacts(env, alpha=X['force_alpha']*X['keep_hysteresis'], rest_plunger=True)
+    prev, pprev, valid = env.x_kon, env.x_kpts, env.x_kvalid
+    if X['temporal_off_gates'] and k is not None:
+        if getattr(env, 'x_tgate', None) is None:
+            ref = np.load(env.task/'reference.npz'); miss = [g_ for g_ in X['temporal_off_gates'] if g_ not in ref.files]
+            assert not miss, f'temporal_off_gates not in reference.npz: {miss}'
+            env.x_tgate = torch.as_tensor(np.any([ref[g_].astype(bool) for g_ in X['temporal_off_gates']], 0), device=env.device)
+        valid = valid & ~env.x_tgate[k]
+    on = cur | (prev & lo)
+    lost, drift, slip = [], [], []
+    for sd in (0, 1):
+        m_ = env.x_lside == sd
+        lost.append(RW.contact_lost(prev[:, m_], lo[:, m_]))
+        drift.append(RW.contact_graph(pts[:, m_], on[:, m_], pprev[:, m_], prev[:, m_])[0])
+        slip.append(RW.contact_slip(pts[:, m_], on[:, m_], pprev[:, m_], prev[:, m_]))
+    out = {'contact_keep': (lost[0]+lost[1])/2, 'contact_drift': ((drift[0]+drift[1])/2*1e3/X['drift_mm']).clamp(max=5.),
+           'contact_slip': ((slip[0]+slip[1])/2*1e3/X['slip_mm']).clamp(max=5.)}
+    out = {n_: torch.where(valid, torch.nan_to_num(t, 0., 0., 0.), z) for n_, t in out.items()}
+    env.x_kon, env.x_kpts, env.x_kvalid = on, pts, torch.ones_like(env.x_kvalid)
+    return out
+
+
+def margin_term(env, k, nrm, pos, cw, cside):
+    """(11-08) Task-wrench margin penalty (N,) in [0, 1): mean over the hands of tanh(d_mean / margin_rho), d_mean = RW.wrench_margin's mean
+    distance (N) of the required wrench +- margin_rho on each wrench axis from what the current contacts can supply (forces <= margin_fmax in
+    friction cones). 0 = holds the required wrench (gravity + the reference object's inertia) with margin_rho to spare in every axis. Solved every
+    margin_every control steps, held in between. Gated by the reference holding phase (object in hand) when margin_gate."""
+    X = env.xcfg; N = env.num_envs; dev = env.device
+    if env.x_mstep % max(1, int(X['margin_every'])) == 0:
+        wq = env.x_cref['u'][k]*env.x_cref['wn'][k][..., None]           # (N, 2, 6) required wrench [m (a - g); I alpha / L] of the reference
+        for sd in (0, 1):
+            sel = cside == sd; ns = int(sel.sum())
+            dr, dm = RW.wrench_margin(nrm[sel], pos[sel], env.x_xipos[:, env.x_objb[sd]], wq[:, sd], torch.full((ns,), float(X['margin_mu']), device=dev), cw[sel], N,
+                                      X['torque_length'], float(X['margin_fmax']), float(X['margin_rho']), int(X['margin_iters']))
+            env.x_mdreq[:, sd] = torch.nan_to_num(dr, 0., 0., 0.); env.x_mdmean[:, sd] = torch.nan_to_num(dm, 0., 0., 0.)
+    env.x_mstep += 1
+    if X['margin_gate']:
+        if env.x_mgate is None:
+            ref = np.load(env.task/'reference.npz'); F = len(env.x_cref['u'])
+            env.x_mgate = torch.as_tensor(np.stack([ref['gate_pipette_held'] if 'gate_pipette_held' in ref.files else np.ones(F),
+                                                    ref['gate_tube_held'] if 'gate_tube_held' in ref.files else np.ones(F)], 1).astype(np.float32), device=dev)
+        gate = env.x_mgate[k]
+    else: gate = torch.ones(N, 2, device=dev)
+    pen = (gate*torch.tanh(env.x_mdmean/float(X['margin_rho']))).sum(1)/2
+    return pen, {'_margin_req_pipette_N': env.x_mdreq[:, 0], '_margin_req_tube_N': env.x_mdreq[:, 1],
+                 '_margin_mean_pipette_N': env.x_mdmean[:, 0], '_margin_mean_tube_N': env.x_mdmean[:, 1]}
 
 
 def reward(env, r, k):
     """Extra reward (N,) and info. Positive kernels added, penalties subtracted (weights from the config)."""
     X = env.xcfg; Wt = X['w']; N = env.num_envs; dev = env.device; terms, pen = {}, {}
-    if env.x_cref is not None and (Wt['contact_set'] > 0 or Wt['contact_graph'] > 0 or Wt['wrench_support'] > 0 or X['log']):
+    temporal = any(Wt[n_] > 0 for n_ in ('contact_keep', 'contact_drift', 'contact_slip'))
+    margin = Wt['wrench_margin'] > 0 or X['log_margin']
+    if env.x_cref is not None and (Wt['contact_set'] > 0 or Wt['contact_graph'] > 0 or Wt['wrench_support'] > 0 or X['log'] or temporal or margin):
         cur, pts, (nrm, pos, cw, cside) = contacts(env); ref = env.x_cref['mask'][k]; pref = env.x_cref['pts'][k]
+        if temporal or X['log']: pen.update(contact_temporal(env, cur, k))                     # (11-08) reference-free contact stability
+        if margin: pen['wrench_margin'], mi_ = margin_term(env, k, nrm, pos, cw, cside); terms.update(mi_)
         miss, unint, err = [], [], []
         for sd in (0, 1):
             msk = env.x_lside == sd; mi, un = RW.contact_set(cur[:, msk], ref[:, msk]); miss.append(mi); unint.append(un)
@@ -201,7 +354,8 @@ def reward(env, r, k):
         tilt = torch.arccos((loc[:, :3, 2]*rz).sum(-1).clamp(-1, 1))   # rad; seat misses were ~8 deg in hand -> jam ~5 mm high
         pen['tube_tilt'] = torch.where(env.x_tube_held[k], (tilt/.05)**2, torch.zeros_like(tilt))   # 1 = 0.05 rad (2.9 deg)
         terms['_tube_tilt_deg'] = torch.rad2deg(tilt)
-    pen['action_rate'] = RW.action_rate(r, env.prev)
+    pen['action_rate'] = action_rate_term(env, r)
+    pen.update(torque_rate_terms(env))                                                       # (11-09)
     pen['elbow_height'] = RW.elbow_above_shoulder(env.xpos[:, env.x_elbow, 2], env.xpos[:, env.x_shoulder, 2], 0.)
     qa = env.qpos[:, env.aq][:, env.x_arm]; pen['joint_margin'] = RW.joint_margin(qa, env.x_alo-X['margin_rad'], env.x_ahi+X['margin_rad'], X['margin_rad'])
     extra = sum(float(Wt[n])*t for n, t in terms.items() if n in Wt)-sum(float(Wt[n])*t for n, t in pen.items() if n in Wt)

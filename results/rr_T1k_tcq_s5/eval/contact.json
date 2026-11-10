@@ -1,0 +1,42 @@
+{
+ "ckpt": "runs/rr_T1k_tcq_s5/final.pt",
+ "config": "configs/rr_T1k_tcq_s5.json",
+ "metrics_config": "<node_code>/rl/configs/rr_T1k_tc_s5.json",
+ "n_worlds": 64,
+ "survived_to_end": 4,
+ "counted_steps (alive, outside regrasp gates)": 28787,
+ "lost_fraction_per_step": {
+  "mean": 0.0267,
+  "p95": 0.1667
+ },
+ "lost_fraction_per_s (side-averaged, x 50 Hz)": 1.336,
+ "drift_mm_per_step (penalty units, side-averaged, capped 5)": {
+  "mean": 0.063,
+  "p95": 0.262
+ },
+ "slip_mm_per_step (same)": {
+  "mean": 0.094,
+  "p95": 0.34
+ },
+ "links_in_contact_per_world": 6.35,
+ "holds_required_wrench_share (ref-held steps)": {
+  "pipette": 0.883,
+  "tube": 0.918
+ },
+ "margin_mean_N (ref-held; 0 = full rho margin)": {
+  "pipette": 0.061,
+  "tube": 0.034
+ },
+ "params": {
+  "force_alpha": 0.1,
+  "keep_hysteresis": 0.5,
+  "margin_fmax": 3.0,
+  "margin_mu": 1.5,
+  "margin_rho": 0.3,
+  "temporal_off_gates": [
+   "gate_grasp_shift_right",
+   "gate_grasp_shift_left",
+   "gate_regrasp"
+  ]
+ }
+}

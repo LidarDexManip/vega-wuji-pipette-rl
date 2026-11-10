@@ -4,7 +4,30 @@ Bimanual task, learned from one human video. The **left** Wuji hand picks a tube
 
 Robot: Dexmate Vega-U, two 7-DoF arms, each with a 20-DoF Wuji hand2 beta1. Fixed base, lift held.
 
-Everything here is **simulation**. Nothing has run on the real robot yet. Each number below names the file it comes from. Robot, hand, lab and pipette meshes are **not included** (see [Assets](#6-how-to-run)).
+Everything here is **simulation**. Nothing has run on the real robot yet. Each number below names the file it comes from. Robot, hand, lab and pipette meshes are **not included** (see [Assets](#9-how-to-run)).
+
+## Status (2026-11-10)
+
+- **Latest rounds** (§4):
+  - The **tc line** keeps the MPC reference. It replaces the demo's contact labels in the reward with contact terms computed from the policy's own contacts. tcs1 adds CAPS action smoothness on the policy mean.
+  - **KA / KB** use the same reward on the **kinematic reference**, with no MPC anywhere. They train with the tracker's VOC curriculum.
+- **Whole task from frame 0**, 64 runs with all randomisation on. Tubes seated:
+
+  | tc | R3B | KA | tcs1 | KB |
+  |---|---|---|---|---|
+  | 47 | 42 | 40 | 34 | 29 |
+
+- **Smoothest runs: tcs1 and KA.** In carry, CAPS halves the 3–8 Hz wrist shake of the right wrist (R3B 0.51 mm → 0.25–0.28 mm). It also brings the arm torque rate down to the zero-residual level.
+- **KA full-task success** (tube seated + pipette seated + press), from local sweeps:
+
+  | Sweep | Full success |
+  |---|---|
+  | Training distribution | 66 % |
+  | All 100 hole pairs, holders at nominal | 76 % |
+  | Stand yaw ±30° or more (trained ±10°) | 0 % |
+
+  Failure causes and the proposed next round are in §5.
+- **Not done yet:** no new student has been distilled, and nothing has run on hardware.
 
 ## 1. Pipeline layers
 
@@ -12,9 +35,9 @@ Everything here is **simulation**. Nothing has run on the real robot yet. Each n
 |---|---|---|---|
 | 1 | Human video → **kinematic reference** | Reconstruction, retargeting and IK to Vega-U + Wuji. No physics. | Not included. `tasks/task_kin_*` are built from it (tracker line only). |
 | 2 | **Physics demo** (MuJoCo) | DAID ("do-as-I-do") sampling MPC tracks layer 1 in MuJoCo. Its executed controls are a physically valid demo ("T1_k", seed 0). | Not included. Its executed states and ctrl are exported into `tasks/task_T1k_*/reference.npz` (`rl/export_task.py`). Contact labels come from it via `rl/contact_ref.py`. |
-| 3 | **Residual-PPO teacher** (MuJoCo Warp, GPU) | The policy adds a joint-space residual on top of layer 2's executed ctrl, under heavy randomisation. | `rl/`, `rl/configs/`, `results/<run>/final.pt`, `videos/` |
+| 3 | **Residual-PPO teacher** (MuJoCo Warp, GPU) | The policy adds a joint-space residual on top of layer 2's executed ctrl, under heavy randomisation. | `rl/`, `rl/configs/`, `results/<run>/final.pt`, `videos/`. Rounds R1–R3 (§3), tc line (§4). |
 | 4 | **DAgger student** (deployable observations) | `rl/distill.py`. Only plumbing-tested so far. | `results/student_plumb/` |
-| — | Tracker (WIP) | One RL policy for any kinematic reference, with no per-video MPC. | `tracker/` |
+| — | Tracker (WIP) | One RL policy for any kinematic reference, with no per-video MPC. | `tracker/`. KA / KB (§4) are residual teachers on the kinematic reference, with no MPC base: `results/kin_tc*_s5/`. |
 
 ## 2. RL setup (teacher, layer 3)
 
@@ -78,6 +101,7 @@ The env returns `0.01 × (tracking + extras)`.
 | Naturalness definitions | `finger_still`: finger speed where the reference finger is still, all 40 joints. `*_band`: causal 3–10 Hz band (MA2−MA8) of the deviation from the reference. |
 | Task | `tube_tilt` 1.0: tube-axis tilt in the hand vs the reference, 1 = 2.9°. `pipette_seat` 1.0: pipette pose vs its seated reference around the put-back, 1 = 5 mm / 2.9°. |
 | Not used | `press_progress` (tracker only). Tube spin is not penalised. |
+| tc line, KA / KB (§4) | T1–T3 and `free_finger_acc` set to 0. Replaced by contact terms computed from the policy's own contacts, plus CAPS on the policy mean. |
 
 ### Termination and success
 
@@ -181,7 +205,191 @@ Source: `docs/NODE_PLAN_R3.md`.
 4. **Pipette tipping after placement (8/64).** An ordered-release base failed its replay, so it was not used.
 5. **No R3B student yet.**
 
-## 4. Teacher → student (DAgger)
+## 4. Round 4 (tc line) and the kinematic-reference runs (KA / KB)
+
+**Shared setup.** Unless a row below says otherwise, every run uses:
+
+- seed 5, 4096 envs on one B200;
+- R3B's DR (`dr_rr1_kv3_zeta.json`), holder randomisation (±5 cm / ±10°, 88 hole pairs), residual scales and PPO settings.
+
+Configs are `rl/configs/rr_T1k_tc*_s5.json` and `tracker/configs/kin_tc*_s5.json`. The `_note` field of each config holds the full rationale.
+
+### What changed
+
+| Run (results dir) | Reference and base | Change | Steps / wall (`progress.jsonl`) |
+|---|---|---|---|
+| **tc** (`rr_T1k_tc_s5`) | MPC demo (`task_T1k_still3_noff`) | R3B with the demo's contact labels removed from the reward: T1, T2, T3 and `free_finger_acc` set to 0. Four new contact terms come from the policy's own contacts (next table). | 2.00e8 / 3.16 h |
+| tcq (`rr_T1k_tcq_s5`) | MPC demo | tc + `torque_rate_arm` 2.0 and `torque_rate_finger` 1.0. `action_rate` (weight 0.5) is normalised so that it actually acts. | 2.00e8 / 2.98 h |
+| **tcs1** (`rr_T1k_tcs1_s5`) | MPC demo | tc + CAPS 0.1: a smoothness loss on the policy *mean*, added to the PPO loss (`rl/caps.py`). Replaces tcq's reward-side rate terms. | 2.00e8 / 3.20 h |
+| tcs5 (`rr_T1k_tcs5_s5`) | MPC demo | tc + CAPS 0.5 | 2.00e8 / 3.13 h |
+| **KA** (`kin_tc_s5`) | **Kinematic reference** (`task_kin_noprior_press`: IK arms, finger reference and an analytic press prior). No MPC in the base, the reward reference or the contact terms. | See the KA notes below the table. | 3.00e8 / 4.79 h |
+| KB (`kin_tcw_s5`) | Kinematic reference | KA, with the hand-tracking multipliers (`track_w` link, joint and wrist) lowered from 1 to 0.5; the object terms are kept. The four contact terms are doubled, 0.5 → 1.0. | 3.00e8 / 4.69 h |
+
+**KA notes.** KA uses tcs1's reward and CAPS 0.1, trained with `tracker/train_tracker.py`:
+
+- **VOC** (virtual object controller, §7) goes from 1 to 0 on success. A linear ramp also forces it to 0 between 5e7 and 1.5e8 steps, so the last 1.5e8 steps have no VOC.
+- Press aids from tracker r3: `press_progress_w` 2, `plunger_weight` 8, `thumb_press_scale` 2.
+- Holders move ±5 cm / ±10° over 88 hole pairs. The earlier tracker runs used ±2 cm / ±5°.
+
+**Why tcq failed.** A rate penalty in the reward also penalises PPO's exploration noise.
+
+- With zero residual plus noise 0.1, the penalty is −68 per step, against about +21 for tracking.
+- The action std collapsed from 0.10 to 0.03.
+- Training success at 1e8 steps was 0.42, against 0.88 for tc.
+
+**CAPS.** CAPS acts on the policy mean only, so it avoids this. `rl/caps_calib.py` calibrated its coefficient on R3B final:
+
+- coeff 0.1 gives about 0.16 × the PPO surrogate's actor gradient;
+- coeff 0.5 gives about 0.8 ×.
+
+### New reward and loss terms
+
+Sources: the config notes, `rl/vega_extras.py`, `rl/caps.py`.
+
+| Term | Definition |
+|---|---|
+| `contact_keep` | Fraction of the previous control step's hand–object link contacts that are lost. Hysteresis: a contact starts above 0.1 × the object's weight and ends below 0.05 ×. |
+| `contact_drift` | Mean change of the pairwise distances between contact points on the object, 1 = 1 mm per step. The plunger stroke is removed. |
+| `contact_slip` | Mean motion of each contact point on the object, 1 = 1 mm per step. |
+| `wrench_margin` (replaces T3) | Checks whether the current contacts can supply the wrench that the reference object motion needs. The required wrench gets ±0.3 N on each axis. Limits: ≤ 3 N per contact, circular cones with μ 1.5. Solved every 4 control steps, only while the reference holds the object. Unlike T3, it accounts for torque balance. |
+| Gating | The three contact-change terms are off during the deliberate in-hand regrasps (`temporal_off_gates`). |
+| `track_w` | Per-term multipliers on the tracking reward: object, link, joint, wrist, world. The defaults are 8 / 1 / 1 / 1 / 1, which equals R3B. |
+| `torque_rate_*` (tcq only) | Squared change of the control-step mean actuator torque between control steps, 1 = 1 % of the torque limit per step, cap 25. |
+| CAPS (tcs1, tcs5, KA, KB) | Temporal smoothness of the policy mean as a PPO loss term (Mysore et al. 2021). It is logged as rsl_rl's `symmetry` loss. 1 = a change of 0.01 normalised action on every actuator per control step. Cap 25, 8192 pairs per update. |
+
+### Results
+
+**Setup.**
+
+- Evals: `eval_rr.py`, seed 123, deterministic actor mean. Each run is judged under its own config and DR.
+- Run by `node_eval.sh`; tables built by `rl/compare_runs.py`.
+- Files:
+  - `results/compare_tc_rounds.json`, `results/compare_kin.json`;
+  - per run, `results/<run>/eval/`.
+- "Zero residual" means the R3 base (`task_T1k_still3_noff`) with no policy.
+- Counts are reach end / tube seated / press OK. The columns are as in §3.
+
+| Run | From start (64) | Train perturbations (92) | Held-out holes (92) | Held-out placements (92) |
+|---|---|---|---|---|
+| Zero residual (R3 base) | 1 / 0 / 18 | 29 / 24 / 29 | 28 / 20 / 25 | 14 / 10 / 23 |
+| R3B | **52** / 42 / **59** | 89 / 83 / 34 | **89** / 76 / 35 | 58 / 53 / 29 |
+| **tc** | 50 / **47** / **59** | **90 / 86 / 36** | 86 / 80 / 35 | **63 / 60 / 30** |
+| tcq | 4 / 1 / 21 | 43 / 30 / 30 | 37 / 23 / 29 | 24 / 19 / 24 |
+| tcs1 | 37 / 34 / 47 | 87 / 83 / 34 | 84 / 77 / 34 | 61 / 55 / 28 |
+| tcs5 | 26 / 19 / 33 | 73 / 61 / 29 | 66 / 57 / 28 | 41 / 36 / 23 |
+| **KA** | 42 / 40 / 54 | 83 / 80 / 35 | 84 / **81** / 34 | 61 / **60** / 30 |
+| KB | 30 / 29 / 53 | 82 / 79 / **36** | 79 / 76 / **36** | 58 / 57 / 29 |
+
+**Smoothness and contacts.** These come from the same from-start evals:
+
+- the `natural` block of `eval_rr.py`;
+- `eval_contact_stability.py`;
+- `reward_breakdown.py`.
+
+Limits marked PROPOSED are not approved yet. The idle-finger count here is over 30 cells, so it is not comparable with the 25-cell count in §3.
+
+| Metric | Zero res. | R3B | tc | tcq | tcs1 | tcs5 | KA | KB |
+|---|---|---|---|---|---|---|---|---|
+| Wrist 3–8 Hz, carry, R / L mm (PROPOSED ≤ 0.3) | 0.28 / 0.55 | 0.51 / 0.59 | 0.46 / 0.56 | 0.44 / 0.56 | 0.28 / 0.46 | 0.28 / 0.52 | **0.25 / 0.39** | 0.25 / 0.40 |
+| Wrist 8–24 Hz, carry, R / L mm (PROPOSED ≤ 0.1) | 0.022 / 0.070 | 0.098 / 0.119 | 0.091 / 0.107 | 0.032 / 0.075 | 0.021 / 0.067 | 0.020 / 0.067 | 0.033 / 0.067 | 0.033 / 0.071 |
+| Wrist 8–24 Hz, after release, R / L mm | 0.046 / 0.053 | 0.065 / 0.065 | 0.061 / 0.067 | 0.044 / 0.043 | 0.044 / 0.054 | 0.041 / 0.051 | 0.012 / 0.026 | 0.012 / 0.025 |
+| Idle-finger cells over limits (of 30) | 3 | 25 | 30 | 5 | 14 | 9 | 21 | 14 |
+| Action rate, mean square | 0 | 6.3e-4 | 6.3e-4 | 1.1e-4 | 1.0e-4 | 1.9e-4 | 7.5e-5 | 5.6e-5 |
+| Arm torque rate (1 = 1 % of the limit per step) | 0.19 | 0.54 | 0.47 | 0.20 | 0.20 | 0.19 | 0.22 | 0.22 |
+| Finger torque rate | 1.69 | 2.17 | 2.19 | 1.54 | 1.57 | 1.74 | 1.41 | 1.41 |
+| Contacts lost per step | 0.022 | 0.026 | 0.029 | 0.027 | 0.022 | 0.020 | 0.031 | 0.032 |
+| Contact drift / slip, mm per step | 0.065 / 0.092 | 0.065 / 0.098 | 0.067 / 0.098 | 0.063 / 0.094 | 0.055 / 0.084 | 0.059 / 0.087 | 0.060 / 0.083 | 0.060 / 0.090 |
+| Share of reference-held steps with the required wrench, pipette / tube | 0.84 / 0.93 | 0.86 / 0.95 | 0.85 / 0.94 | 0.88 / 0.92 | 0.88 / 0.95 | 0.83 / 0.94 | 0.87 / 0.88 | 0.86 / 0.89 |
+
+**Readings.**
+
+- **tc vs R3B.** tc seats more tubes from start than R3B (47 vs 42) without using the demo's contact labels.
+- **Reward-side rate terms vs CAPS.** tcq's reward-side rate terms break training; CAPS on the mean does not.
+- **CAPS 0.1 (tcs1).** It brings the arm torque rate and the 3–8 Hz right-wrist shake down to the zero-residual level. The cost is 13 tubes seated from start (47 → 34). CAPS 0.5 (tcs5) costs more.
+- **KA.** With no MPC in the loop, KA matches tc on the restart evals: held-out holes 81 vs 80 tubes seated, held-out placements 60 vs 60. It is the smoothest run. From start it seats 40 tubes, against tc's 47.
+- **KB.** Lowering hand tracking and doubling the contact terms did not help (29 from start). Idle fingers drop from 21 to 14.
+- **Training success is not task success.** The "success" in `progress.jsonl` (KA 0.84) starts mid-clip and does not check seating. It is therefore far above the from-start numbers.
+
+## 5. KA failure analysis and the proposed next round
+
+### Variation study
+
+**Setup.**
+
+- Rollouts: `rl/record_rollouts.py` with KA final, deterministic mean, DR on, on a local RTX 4080.
+- Files: spec files and per-world outcomes are in `results/kin_tc_s5/vary/`.
+- Summary command: `python3 rl/vary_summary.py results/kin_tc_s5/vary`.
+- **Full success** means tube seated, pipette seated and press OK (the `eval_rr.py` press rule) at the end of the clip.
+- Each cell has 16–20 worlds, so differences under about ±12 % are noise.
+
+| Sweep | Worlds | Full success |
+|---|---|---|
+| `rand64`: training distribution. Random hole pair from the 88; rack and stand ±5 cm / ±10°. | 64 | 42 (66 %) |
+| `holes`: all 100 hole pairs × 2, holders at nominal (`kin_tc_s5_eval_allholes.json`) | 200 | 151 (76 %): trained pairs 139/176 (79 %), never-trained 12/24 (50 %) |
+| `standyaw`: stand yaw −45° … +45°, 16 worlds each, pair r0c3 → r1c3, holders otherwise nominal | 176 | 89 (51 %) |
+
+The 12 never-trained pairs are every pick from r1c0 (10 pairs) plus the held-out r0c1 → r1c4 and r1c2 → r0c0.
+
+**By hole** (`holes`, successes out of 20):
+
+| Hole | r0c0 | r0c1 | r0c2 | r0c3 | r0c4 | r1c0 | r1c1 | r1c2 | r1c3 | r1c4 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Pick | 16 | 15 | 12 | 13 | 19 | **9** | 16 | 16 | 18 | 17 |
+| Place | **11** | 20 | 17 | 17 | 13 | 15 | 15 | 16 | 16 | **11** |
+
+**By stand yaw** (`standyaw`, successes out of 16; the training range is ±10°):
+
+| Yaw | −45° | −30° | −20° | −15° | −10° | 0° | +10° | +15° | +20° | +30° | +45° |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| Full success | 0 | 0 | 5 | 10 | 13 | 9 | 14 | 14 | 14 | 10 | 0 |
+
+**First-failure causes**, by object and by time window of the reference:
+
+| Cause | rand64 | holes | standyaw |
+|---|---|---|---|
+| Pipette: extraction from the stand | 5 | 0 | 53 |
+| Pipette: carry / press | 0 | 0 | 3 |
+| Pipette: return into the stand | 9 | 6 | 7 |
+| Pipette: after the release | 0 | 1 | 1 |
+| Tube: grasp / lift from the rack | 1 | 7 | 3 |
+| Tube: carry / press | 1 | 1 | 0 |
+| Tube: carry back | 1 | 14 | 2 |
+| Tube: entering the rack | 2 | 10 | 9 |
+| No termination, but not seated or no press at the end | 3 | 10 | 9 |
+
+### Mechanisms
+
+1. **Pipette return into the stand.** This is the largest cause in the training distribution, and it is not a joint limit.
+   - The pipette is already off in the hand by 10 s: 6.4 mm / 3.2° in failing worlds, against 2.6 mm / 1.5° in successes.
+   - Above the stand, the lateral error is 7–15 mm, against 3–5 mm.
+   - Pipette failures (return + extraction) follow the stand offset: 10 of 24 worlds with an offset ≥ 45 mm fail, against 4 of 40 below.
+   - The object-tracking term (axis points, σ 4 cm) is too loose to hold a mm-level in-hand pose.
+2. **Left middle finger opens at 18.6–19.5 s.** The kinematic reference (the retargeted human demo) opens it while the tube is still held. The MPC reference keeps it closed until 21.8 s.
+   - The left-finger residual is capped at ±0.05 rad (±2.9°), so the policy cannot keep the finger closed.
+   - The tube then slides axially out of the remaining two-finger pinch. This accounts for 11 of the 14 "carry back" failures in `holes`, all at 18.5–19.3 s.
+   - Opening the finger is not needed for clearance at the rack: the clearance is 38 mm.
+3. **Pick from r1c0** (never trained): 9 of 20 succeed. The tube is lost while lifting out, or jams tilted.
+4. **Stand yaw beyond the training range.**
+   - **Negative yaw:** the right wrist joint `R_arm_j7` runs into its limit during the extraction. Its margin is 18.7° at 0°, 5° at −20° and 0° at −30°.
+   - **+45°:** the reset re-anchoring IK (4 iterations) is off by 66 mm / 29°. The episode fails at 3.05 s, before the grasp.
+   - **+30°:** 4 failures at the pipette return.
+5. **Tube entering the rack**, around 20.6 s: 10 failures in `holes`, 9 in `standyaw`. The tube is lost or jams tilted.
+
+Clips of each case are in `videos/kin_failures/` (§8).
+
+### Proposed next round (not implemented)
+
+Start from KA final and train 1–1.5e8 more steps. Run an ablation alongside with change 2 only.
+
+1. Add a pipette in-hand pose penalty on the right hand, like `tube_tilt` (σ 5 mm / 3°). Also apply `pipette_seat` over the extraction window (3.8–5.4 s).
+2. Keep the left middle finger closed in the reference until 21.8 s, as the MPC reference does.
+3. Train on all 100 hole pairs.
+4. Train with stand yaw ±15°. Raise the re-anchoring IK iterations from 4 to 10.
+5. Keep the hand-tracking weights (KB showed that lowering them does not help), CAPS 0.1 and the DR.
+
+Deferred: failure-weighted start sampling, and relaxing the relative-pose termination once the object is seated.
+
+## 6. Teacher → student (DAgger)
 
 `rl/distill.py`, using `obs_mode='deployable'` plus `extras.student`.
 
@@ -209,7 +417,7 @@ The student sees no object state after the start and no contacts.
 
 **Status:** only a plumbing test, on an early task E1 with a smoke teacher (`rl/configs/rr_student_plumb.json`; task E1 not included). In `results/student_plumb/eval_student_plumb.json` the student reached the end in 14 of 20 runs. The deployable student has not been distilled from R3B yet.
 
-## 5. Tracker (work in progress)
+## 7. Tracker (work in progress)
 
 **Goal.** Train one RL "optimizer" that turns *any* kinematic reference (layer 1) of this task family into physically executable, natural motion, so new videos need no per-video MPC.
 
@@ -233,9 +441,54 @@ The student sees no object state after the start and no contacts.
 | 100M (`stage0_noprior_r2`) | 26 | 26 | 0/64 | 0.243 | `tracker/evals/go_100M_voc0.json` |
 | 152M (`stage0_noprior_r3`, press-prior base) | 34 | 15 | 56/64 | 0.276 | `tracker/evals/go_152M_voc0_T1.json` |
 
-At VOC 0, carry, grasp and seating are learned, but there is no press without the press prior. With the press prior, presses work but seating drops. A run warm-started from 75M on the press-prior base, with an idle-finger mask, is in progress (not included).
+At VOC 0, carry, grasp and seating are learned, but there is no press without the press prior. With the press prior, presses work but seating drops. A run warm-started from 75M on the press-prior base, with an idle-finger mask, was in progress at the time (not included).
 
-## 6. How to run
+**Since then: KA / KB (§4).** These runs move the tracker trainer onto the full teacher setup, on the press-prior kinematic task:
+
+- holders ±5 cm / ±10°, 88 hole pairs;
+- R3 DR;
+- reference-free contact terms (no T1_k labels);
+- CAPS;
+- VOC forced to 0 for the last half of training.
+
+Their evals use `eval_rr.py` with the full DR. They are not comparable with the VOC-0 table above, where DR is only finger kd ×3.
+
+## 8. Videos, rendering and perception
+
+**Videos.** Unless noted, these are MuJoCo renders of recorded rollouts (`rl/record_rollouts.py` → `rl/render_compare.py`) at 50 fps.
+
+- Each row shows one policy: overview | right hand (pipette) | left hand (tube).
+- The close-up cameras follow a smoothed wrist-object midpoint, so shake shows against a steady camera.
+- Every compared policy gets the same world spec and DR seed.
+
+| Path | What |
+|---|---|
+| `videos/*.mp4` (top level) | R2 / R3 videos (§3) |
+| `videos/reference_layers/` | Layer 1 (kinematic reference) vs layer 2 (MPC physics demo), replayed with no policy. Full clip, plus press 8–12 s and return 17–24 s at 0.5×. |
+| `videos/caps_rounds/` | R3B vs tcs1 (CAPS 0.1) vs tcs5 (CAPS 0.5), worlds 2 and 3, and carry at 0.25×. `ee_path_world2.png`: wrist paths vs the reference (`rl/ee_path.py`). |
+| `videos/kin_ref_final/` | tcs1 (MPC reference) vs KA vs KB (kinematic reference), final checkpoints, worlds 1–3, and press at 0.5×. Wrist-path figure. |
+| `videos/kin_failures/` | The 12 KA failure cases of §5, each labelled with its world spec and fail reason, plus all 12 in one montage at 0.5×. |
+| `videos/blender/KA_final_world2/` | KA final, world 2, replayed in a Blender lab scene: robot head camera, fixed overview, and both side by side. |
+
+**Not committed:**
+
+- per-policy single clips, which the `compare_*` videos already show side by side;
+- the 175M-step midpoint renders;
+- `.blend` files, which embed the robot and lab meshes.
+
+**Rendering in Blender** (render only, nothing is simulated):
+
+- `render/mj_to_blender.py` exports a recorded rollout for Blender: visual meshes, per-frame body poses, furniture anchors and the head camera frame. It handles only worlds with zero holder offsets.
+- `render/blender_replay.py` runs inside Blender 5.2. It places the exported robot and objects in a lab scene ("LIDAR Environment.blend", not included) and renders the head and overview cameras. The head camera's field of view is a placeholder until the real intrinsics are known.
+
+**Perception bench tools** (not used by the RL yet):
+
+- `perception/record_realsense.py` records a RealSense (D435i, D405): colour video, raw metric depth per frame, and optionally a rosbag.
+- `perception/d405_viewer.py` is a live D405 depth viewer.
+- `perception/ffs_compare.py` compares, live, the D405's on-chip depth with Fast-FoundationStereo run on the D405's stereo pair. It runs in FFS's own venv; the checkpoints are not included.
+- Raw captures (`perception/snapshots/`, `perception/recordings/`) are not committed.
+
+## 9. How to run
 
 **Environment.** Python 3.12, from `requirements_rl_head.txt`:
 
@@ -271,6 +524,28 @@ python -I eval_rr.py configs/rr_T1k_r3B_s5.json --from-start 64 --out zero_froms
 python -I eval_rr.py configs/rr_T1k_r3B_eval_holdout.json  --ckpt ../results/rr_T1k_r3B_s5/final.pt --repeat 4 --out ho.json
 python -I eval_rr.py configs/rr_T1k_r3B_eval_holdplace.json --ckpt ../results/rr_T1k_r3B_s5/final.pt --repeat 4 --out hp.json
 python test_arm_clamp.py                                               # CPU unit test
+python test_contact_terms.py; python test_rate_terms.py; python test_caps.py   # CPU unit tests of the §4 terms
+```
+
+**Node scripts** (B200, or any node with CUDA 13 and driver ≥ 580). Run them from the repo root. `node_eval.sh` takes config paths relative to `rl/`.
+
+```bash
+./node_setup.sh                                          # uv venv from requirements_rl_head.txt + CPU unit tests
+GPU=0 ./node_launch.sh rl/configs/rr_T1k_tcs1_s5.json    # one rl/train.py run, detached; resumes from latest.pt
+CUDA_VISIBLE_DEVICES=1 .venv-rl-head/bin/python -I tracker/train_tracker.py tracker/configs/kin_tc_s5.json   # KA (VOC curriculum)
+# 6 parallel evals (from start / train starts / held-out holes / held-out placements / contacts / reward breakdown):
+GPUS="0 3 4 5 6 7" ./node_eval.sh kin_tc_s5 ../tracker/configs/kin_tc_s5.json ../tracker/configs/kin_tc_s5_eval_holdout.json \
+    ../tracker/configs/kin_tc_s5_eval_holdplace.json ../results/kin_tc_s5/final.pt
+python3 rl/compare_runs.py tc=rl/runs/local_eval/rr_T1k_tc_s5 KA=rl/runs/local_eval/kin_tc_s5 --json cmp.json
+```
+
+**Variation study and videos** (one GPU). Run from `rl/`:
+
+```bash
+python -I record_rollouts.py ../tracker/configs/kin_tc_s5.json ../results/kin_tc_s5/final.pt runs/vary/rand64 --worlds ../results/kin_tc_s5/vary/specs_rand64.json
+python -I record_rollouts.py ../tracker/configs/kin_tc_s5_eval_allholes.json ../results/kin_tc_s5/final.pt runs/vary/holes --worlds ../results/kin_tc_s5/vary/specs_holes.json
+python3 vary_summary.py runs/vary
+MUJOCO_GL=egl python render_compare.py ../tasks/task_kin_noprior_press/scene.xml OUT --run runs/vary/rand64 KA --world 37
 ```
 
 `G1PS_ROOT` defaults to `deps_from_g1ps/`. That folder holds the few files of ours from the lab repo that the code imports: `tools/rl/gpu_train.py`, `gpu_env.py`, `gpu_replay.py`, `g1_pipette_sim.retarget.gpu.core`, `g1_pipette_sim.physics.mjw_head`.
