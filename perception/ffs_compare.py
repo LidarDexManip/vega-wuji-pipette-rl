@@ -13,7 +13,7 @@ Window (2x2): colour | D405 on-chip depth
               Fast-FoundationStereo depth | |difference| (mm) where both have depth inside the colour range
 Neither is ground truth: the difference panel shows where they disagree, not which one is right.
 Keys   q / Esc quit | s snapshot (view, colour, left / right, both depths .npy in m) | f toggle librealsense spatial + temporal filters on the
-       D405 depth | [ ] colour range max -/+ 5 cm | ; ' min -/+ 1 cm
+       D405 depth | [ ] colour range max -/+ 1 cm (D405) / 5 cm | ; ' min -/+ 1 cm
 Mouse  hover: both depths under the cursor and their temporal noise (std over the last 15 frames, 7x7 patch).
 Inputs: the D405's rectified left / right imagers (Infrared 1 / 2, y8, tiled to 3 channels), depth = fx B / disparity with fx, B from the
 camera's calibration; pixels whose match would fall outside the right image are dropped. The on-chip depth uses the same frame
@@ -21,7 +21,10 @@ camera's calibration; pixels whose match would fall outside the right image are 
 Near limits at 640x480 (fx 390, B 18 mm): on-chip >= 5.6 cm (126 px search, --shift 0); Fast-FoundationStereo >= 3.7 cm (max_disp 192).
 D435 / D435i (11-09): same, from its two IR imagers (B 50 mm); its colour camera is a separate sensor (not pixel-aligned), so the first
 panel shows the left IR image instead and colour is not streamed. --emitter on|off switches the IR dot projector (on helps the on-chip
-matcher; the dots are also in the images FFS sees). Colour range defaults 20-200 cm, difference scale 0-30 mm.
+matcher; the dots are also in the images FFS sees).
+Defaults follow the working ranges (11-10): D405 on the wrist 7-15 cm -> colour range 5-18 cm, difference 0-5 mm, max_disp 192 (near
+limit 3.7 cm); D435i 40-80 cm -> 35-85 cm, 0-10 mm, max_disp 128 (near limit 15 cm; same result as 192, 6 ms faster). Model 23-36-37 x8
+(29 ms per frame on the D435i at 640x480); offline best quality into a ROS 2 bag: ffs_bag.py.
 """
 import argparse, collections, os, sys, time
 from pathlib import Path
@@ -52,12 +55,12 @@ def patch_noise(hist, x, y, r=3):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--ffs-dir', type=Path, default=Path.home()/'Projects/Fast-FoundationStereo')
-    ap.add_argument('--ckpt', default='23-36-37'); ap.add_argument('--iters', type=int, default=8); ap.add_argument('--max-disp', type=int, default=192)
+    ap.add_argument('--ckpt', default='23-36-37'); ap.add_argument('--iters', type=int, default=8); ap.add_argument('--max-disp', type=int, default=None, help='D405 192, others 128')
     ap.add_argument('--res', default='640x480', help='camera resolution'); ap.add_argument('--fps', type=int, default=30)
     ap.add_argument('--net-size', default=None, help='network input WxH (default: --res), e.g. 256x192; padded to multiples of 32')
     ap.add_argument('--preset', default='Default'); ap.add_argument('--shift', type=int, default=0, help='on-chip disparity shift (written before the start)')
     ap.add_argument('--filters', action='store_true', help='librealsense spatial + temporal filters on the on-chip depth')
-    ap.add_argument('--min', type=float, default=None, help='near end of the colour range, m (D405 0.05, others 0.2)'); ap.add_argument('--max', type=float, default=None, help='far end, m (D405 0.5, others 2)')
+    ap.add_argument('--min', type=float, default=None, help='near end of the colour range, m (D405 0.05, others 0.35)'); ap.add_argument('--max', type=float, default=None, help='far end, m (D405 0.18, others 0.85)')
     ap.add_argument('--diff-max-mm', type=float, default=None, help='difference colour scale (D405 10, others 30)')
     ap.add_argument('--emitter', choices=['on', 'off'], default='on', help='IR dot projector (D435 / D435i)')
     ap.add_argument('--out', type=Path, default=Path(__file__).resolve().parent/'snapshots')
@@ -67,9 +70,11 @@ def main():
     devs0 = rs.context().query_devices()
     if len(devs0) == 0: raise SystemExit('no RealSense camera found')
     model_name = devs0[0].get_info(rs.camera_info.name).replace('Intel RealSense ', ''); use_color = 'D405' in model_name   # D405: colour = left imager
-    if a.min is None: a.min = .05 if use_color else .2
-    if a.max is None: a.max = .5 if use_color else 2.
-    if a.diff_max_mm is None: a.diff_max_mm = 10. if use_color else 30.
+    if a.min is None: a.min = .05 if use_color else .35                 # working ranges (11-10): D405 on the wrist 7-15 cm, D435i 40-80 cm
+    if a.max is None: a.max = .18 if use_color else .85
+    if a.diff_max_mm is None: a.diff_max_mm = 5. if use_color else 10.
+    if a.max_disp is None: a.max_disp = 192 if use_color else 128      # near limit fx B / max_disp at 640x480: D405 3.7 cm, D435i 15 cm
+    step = .01 if use_color else .05                                    # [ ] step of the colour range's far end
     st = {'filters': a.filters, 'lo': a.min, 'hi': a.max}
 
     # ------------------------------------------------------------------ network
@@ -189,8 +194,8 @@ def main():
             k = cv2.waitKey(1) & 0xFF
             if k in (ord('q'), 27) or (a.frames and n >= a.frames): break
             elif k == ord('f'): st['filters'] = not st['filters']; filters = make_filters(); h_rs.clear()
-            elif k == ord(']'): st['hi'] = hi+.05
-            elif k == ord('['): st['hi'] = max(lo+.02, hi-.05)
+            elif k == ord(']'): st['hi'] = hi+step
+            elif k == ord('['): st['hi'] = max(lo+.02, hi-step)
             elif k == ord("'"): st['lo'] = min(hi-.02, lo+.01)
             elif k == ord(';'): st['lo'] = max(0., lo-.01)
             elif k in (ord('s'), ord('S')):   # caps lock on still saves

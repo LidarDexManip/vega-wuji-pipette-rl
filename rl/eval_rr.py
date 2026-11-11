@@ -21,13 +21,14 @@ p = argparse.ArgumentParser(); p.add_argument('config', type=Path); p.add_argume
 p.add_argument('--every-s', type=float, default=1.0); p.add_argument('--out', type=Path); p.add_argument('--no-dr', action='store_true')
 p.add_argument('--diag-pipette', action='store_true', help='(11-06) per world: pipette seat error at the right release, right-hand contacts with the pipette after it, wrist error and stand-contact force at the extraction')
 p.add_argument('--from-start', type=int, default=0, help='(11-06) N worlds that all start at frame 0 (whole task; full slip window) instead of the every-s starts')
-p.add_argument('--student', type=Path, help='distilled deployable student (distill.py checkpoint); the config must carry extras.student'); a0 = p.parse_args()
-C = json.loads(a0.config.read_text()); rel = lambda x: (x if Path(x).is_absolute() else (a0.config.parent/x)).resolve()
+p.add_argument('--student', type=Path, help='distilled deployable student (distill.py checkpoint); the config must carry extras.student')
+p.add_argument('--perturb', action='store_true', help='(11-12) keep the config\'s extras.perturb hand pushes (robustness eval); default: pushes off'); a0 = p.parse_args()
+C = json.loads(a0.config.read_text()); rel = lambda x: (Path(x) if Path(x).is_absolute() else (a0.config.parent/x)).resolve()
 task = rel(C['task']); dr = None if a0.no_dr else (C.get('dr') if isinstance(C.get('dr'), dict) or C.get('dr') is None else json.loads(rel(C['dr']).read_text()))
 r = np.load(task/'reference.npz'); t = r['timestamps']; nfr = len(t)
 starts = [k-(k % 2) for k in np.arange(0, nfr-200, int(round(a0.every_s/.01)))]*a0.repeat; N = len(starts)
 if a0.from_start: starts = [0]*a0.from_start; N = len(starts)
-kw = dict(dr=dr, extras=C.get('extras', {}), reward_scale=C.get('reward_scale', .01))
+kw = dict(dr=dr, extras={k_: v_ for k_, v_ in C.get('extras', {}).items() if a0.perturb or k_ != 'perturb'}, reward_scale=C.get('reward_scale', .01))   # (11-12) pushes off unless --perturb
 for k in ('arm_scale', 'finger_scale', 'group_scale', 'thumb_press_scale', 'plunger_weight'):   # (11-09) tracker configs: must match training
     if C.get(k) is not None: kw[k] = C[k]
 if a0.student: kw['obs_mode'] = 'deployable'
@@ -40,9 +41,14 @@ if a0.ckpt:
     policy = lambda: pol(env.get_observations())
 if a0.student:
     import distill as D
-    ck = torch.load(a0.student, map_location=env.device); stu = D.Student(ck['nin'], ck['nout'], ck['hidden']).to(env.device); stu.load_state_dict(ck['student']); stu.eval()
+    ck = torch.load(a0.student, map_location=env.device)
+    if ck.get('depth'):   # (11-10) depth student: the env must render the same cameras (config extras.student.depth)
+        DX = env.x_depth; assert DX is not None, 'student uses depth images: the config needs extras.student.depth'
+        stu = D.StudentCNN(ck['nin'], ck['nout'], ck['hidden'], (DX['H'], DX['W']), aux=ck.get('aux', 0)).to(env.device)
+    else: stu = D.Student(ck['nin'], ck['nout'], ck['hidden']).to(env.device)
+    stu.load_state_dict(ck['student']); stu.eval()
     assert ck['nin'] == env.obs_actor.shape[1], (ck['nin'], env.obs_actor.shape)
-    policy = lambda: stu(env.obs_actor)
+    policy = (lambda: stu(env.obs_actor, env.x_depth['obs'])) if ck.get('depth') else (lambda: stu(env.obs_actor))
 fp = C.get('eval_fixed_placements')   # (11-06) held-out placements: list of [dx_mm, dy_mm, dyaw_deg] cycled over the worlds (rack; stand gets the mirrored offset)
 if fp:
     P_ = torch.as_tensor([fp[i % len(fp)] for i in range(N)], dtype=torch.float32, device=env.device)
@@ -53,6 +59,10 @@ dev = env.device; first_fail = torch.full((N,), -1., device=dev); steps = int(ma
 _eg = (C.get('extras') or {}).get('event_gate')
 if _eg: steps += int(round(float(_eg.get('cap_s', 1.))/E.CONTROL_DT))*4   # (11-06) the event gate may hold the reference clock up to cap_s per event (4 events)
 press = torch.as_tensor(r['phase'] == 2, device=dev); pl_ref = torch.as_tensor(r['plunger'], device=dev).float(); pl_max = torch.zeros(N, device=dev); pl_s = torch.zeros(N, device=dev)
+# (11-12) pipette tip vs the tube during the press window (the press rule alone never checked it: the tip stayed beside the tube in every world);
+# tip point = the mesh tip (task pip_tip_local; older tasks: the same mesh value)
+TIPM = torch.as_tensor(r['pip_tip_local'] if 'pip_tip_local' in r.files else [-.0077, 0., -.127], dtype=torch.float32, device=dev)
+tip_s, tip_out, tip_lat, tip_n, tip_dmax = (torch.zeros(N, device=dev) for _ in range(5))
 held_t = torch.as_tensor(r['gate_tube_held'], device=dev)
 # (11-06) tube slip = the physics-demo checker's definition (tools/check_physics_tube_grip.py): tube in the left wrist frame vs its pose at the
 # end of the grasp dwell, over [dwell end, end of the held span]; window read from the source stage's tube_grip_check.json. Reference pose =
@@ -125,6 +135,10 @@ for i in range(steps):
                 if first_touch[oi_][w_].get(int(c_)) is None: first_touch[oi_][w_][int(c_)] = round(ts_now, 2)
     depth = -env.qpos[:, env.pl_q]; inp = press[k] & live; pl_max = torch.where(inp, torch.maximum(pl_max, depth), pl_max)
     pl_s += (inp & (depth >= .9*pl_ref.max())).float()*E.CONTROL_DT
+    _, Op_ = env._poses('right'); _, Ou_ = env._poses('left'); tp_ = Op_[:, :3, :3]@TIPM+Op_[:, :3, 3]; rl_ = ((tp_-Ou_[:, :3, 3])[:, None, :]@Ou_[:, :3, :3])[:, 0]
+    rr_ = rl_[:, :2].norm(dim=-1); dp_ = .0638-rl_[:, 2]; inb_ = (rr_ < .0129-.0018) & (dp_ >= .02)   # tip in the 12.9 mm bore (tip radius 1.8 mm), >= 20 mm deep
+    tip_s += (inp & inb_).float()*E.CONTROL_DT; tip_out += (inp & (rr_ > .0144) & (dp_ > 0)).float()*E.CONTROL_DT
+    tip_lat += torch.where(inp, rr_, torch.zeros_like(rr_)); tip_n += inp.float(); tip_dmax = torch.where(inp & inb_, torch.maximum(tip_dmax, dp_), tip_dmax)
     Wr_, Wl_ = env._poses('right')[0], env._poses('left')[0]; kk_ = env.frame.clamp(max=nfr-1)
     wdev_hist.append(torch.cat([Wr_[:, :3, 3]-E.X.ref_w(env, 'right', kk_)[:, :3, 3], Wl_[:, :3, 3]-E.X.ref_w(env, 'left', kk_)[:, :3, 3]], 1).cpu())
     adev_hist.append((env.qpos[:, env.aq][:, env.x_arm]-env.qpos_ref[kk_][:, env.aq][:, env.x_arm]).cpu())
@@ -234,11 +248,21 @@ ref_s = float(((pl_ref >= .9*pl_ref.max()) & press).sum())*.01   # the demo's ow
 pl_ok = ((pl_max >= .5*pl_ref.max()) & (pl_s >= 1.5)).cpu().numpy()   # DECIDES (coordinator 11-05: absolute rule until the user rules)
 pl_ok_rel = ((pl_max >= .5*pl_ref.max()) & (pl_s >= .9*ref_s)).cpu().numpy();   # reported: relative to the demo (E1 1.79 s, T1b 1.25 s); user to decide
 press_rows = np.array([bool(r['phase'][f:].tolist().count(2)) and f < int(np.argmax(r['phase'] == 2)) for f in starts])
+tip_ok = (tip_s >= 1.5).cpu().numpy(); tlm_ = (tip_lat/tip_n.clamp_min(1)).cpu().numpy()*1e3
+_pr = lambda x: np.asarray(x)[press_rows] if press_rows.any() else np.zeros(1)
+tip_detail = {'in_bore_s_p50_min': [round(float(np.median(_pr(tip_s.cpu().numpy()))), 2), round(float(_pr(tip_s.cpu().numpy()).min()), 2)],
+              'beside_tube_below_rim_s_p50_max': [round(float(np.median(_pr(tip_out.cpu().numpy()))), 2), round(float(_pr(tip_out.cpu().numpy()).max()), 2)],
+              'tip_off_axis_mm_mean_p50_max': [round(float(np.median(_pr(tlm_))), 1), round(float(_pr(tlm_).max()), 1)],
+              'tip_depth_in_bore_max_mm_p50': round(float(np.median(_pr(tip_dmax.cpu().numpy())))*1e3, 1)}
 f2 = lambda x: round(float(x), 3)
 res = {'layer': 'RL env rollouts (MuJoCo Warp), deterministic actor mean' if policy else 'RL env rollouts, ZERO residual', 'ckpt': str(a0.ckpt or a0.student) if (a0.ckpt or a0.student) else None, 'actor': 'student (deployable obs)' if a0.student else ('teacher (full state)' if a0.ckpt else 'none'),
        'dr': None if dr is None else 'on', 'n': N, 'reach_end': int(end_ok.sum()), 'pipette_seated': int(seat['pipette'].sum()), 'tube_seated': int(seat['tube'].sum()),
        'press_ok_of_press_starts': f'{int((pl_ok & press_rows).sum())}/{int(press_rows.sum())}', 'press_rule (decides)': 'max depth >= 50 % of the demo max and >= 90 % depth for >= 1.5 s',
        'press_ok_relative (info, user to rule)': f'{int((pl_ok_rel & press_rows).sum())}/{int(press_rows.sum())} (>= 0.9 x the demo {ref_s:.2f} s)',
+       'tip_in_tube_ok_of_press_starts': f'{int((tip_ok & press_rows).sum())}/{int(press_rows.sum())}',
+       'press_and_tip_ok_of_press_starts (decides, 11-12)': f'{int((pl_ok & tip_ok & press_rows).sum())}/{int(press_rows.sum())}',
+       'tip_rule': 'pipette tip (mesh tip point) in the tube bore (< 11.1 mm off its axis) and >= 20 mm below the rim for >= 1.5 s of the press window',
+       'tip_detail (press-start worlds)': tip_detail,
        'tube_slip_checker_def': {'window_s': [round(float(sw[0]), 3), round(float(sw[1]), 3)], 'slip_mm_p50_max': [f2(np.median(slip.cpu().numpy())*1e3), f2(slip.max()*1e3)],
                                  'turn_deg_p50_max': [f2(np.degrees(np.median(slip_ang.cpu().numpy()))), f2(np.degrees(float(slip_ang.max())))],
                                  'rule': 'tube in the left wrist frame vs the demo in-hand pose at the grasp-dwell end, over [dwell end, held end] (check_physics_tube_grip definition)'},
@@ -261,6 +285,7 @@ res['per_world_detail'] = {'end_tube_lat_mm': ((Oe_[:, :2, 3]-Oer_[:, :2, 3]).no
                            'rack_dxy_mm': (hd['rack']['d'].cpu().numpy()*1e3).round(1).tolist() if hd else None, 'rack_dyaw_deg': np.degrees(hd['rack']['th'].cpu().numpy()).round(2).tolist() if hd else None,
                            'stand_dxy_mm': (hd['stand']['d'].cpu().numpy()*1e3).round(1).tolist() if hd else None, 'stand_dyaw_deg': np.degrees(hd['stand']['th'].cpu().numpy()).round(2).tolist() if hd else None,
                            'first_fail_s': first_fail.cpu().numpy().round(2).tolist(),
+                           'tip_in_bore_s': tip_s.cpu().numpy().round(2).tolist(), 'tip_beside_tube_s': tip_out.cpu().numpy().round(2).tolist(), 'tip_off_axis_mm_mean': tlm_.round(1).tolist(),
                            'fail_reason [pipette, tube]': [[(E.FAILURES[int(x)-1] if int(x) > 0 else None) for x in row] for row in fail_reason.cpu().numpy()],
                            'first_touch_s pipette': [{CATS[c_]: v_ for c_, v_ in sorted(d_.items())} for d_ in first_touch[0]],
                            'first_touch_s tube': [{CATS[c_]: v_ for c_, v_ in sorted(d_.items())} for d_ in first_touch[1]], 'arm_margin_cmd_deg': np.degrees(margin_cmd.cpu().numpy()).round(2).tolist(), 'arm_margin_q_deg': np.degrees(margin.cpu().numpy()).round(2).tolist()}
@@ -286,6 +311,7 @@ for w in range(N):
     jam = (_ldz[w] > 3) and (_ltl[w] > 3) and (_ldz[w] < 10)
     if _ff[w] < 0:
         c_ = 'success' if (seat['tube'][w] and seat['pipette'][w]) else ('tube jammed tilted ~5 mm high (reached the end)' if jam else ('pipette not seated (reached the end)' if not seat['pipette'][w] else 'tube not seated, other (reached the end)'))
+        if c_ == 'success' and press_rows[w] and not tip_ok[w]: c_ = 'pipette tip not in the tube during the press (11-12 rule)'
     elif _fr[w, 0] > 0:   # the pipette failed (first, or together with the tube)
         c_ = 'pipette extraction from the stand' if _ff[w] < _t_ext+1.5 else ('pipette after placement in the stand (fingers opening)' if _ff[w] >= _t_place-.5 else 'pipette, carry / press')
     else:

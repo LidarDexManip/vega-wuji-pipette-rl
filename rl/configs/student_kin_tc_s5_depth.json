@@ -1,0 +1,486 @@
+{
+ "_note": "11-10 run on 3 GPUs (node_distill.sh, data parallel): iterations count over all GPUs (1 iteration = 24 x 4096 x 3 env steps), max_iters 680 ~ 2.0e8 steps, beta_iters 50 (= the 1.5e7-step schedule of 150 single-GPU iterations), epochs 1 (one pass over each rank's buffer per iteration: half the single-GPU setting, whose CNN training was 56 % of the time). 11-10 DEPTH variant of student_kin_tc_s5.json (everything else identical): + the two wrist depth images (vega_extras depth cameras: forearm-bracket mount of perception/wristcam_sim.py, 96x72, f 58.5 px (the D405 640x480 intrinsics scaled), rendered every 2 control steps (25 Hz) and shown one render later (40 ms latency), stereo noise interpolated per episode between the FFS-like and the D405-on-chip-like levels incl. depth-scale and camera-mount calibration errors), encoded by a shared CNN (distill.StudentCNN); auxiliary loss (weight 1): the held objects' axis points in the wrist frames from the image features (training signal only). Previous note: 11-10 first deployable student of KA (tracker/configs/kin_tc_s5.json, results/kin_tc_s5/final.pt), DAgger (distill.py). Student actor input (obs_mode 'deployable' + extras.student): measured joints (encoder offset + noise), finger speed by first difference, previous actions (3-step history); the reference tables at t+0/40/100/240 ms (reference joints, base command, plunger reference), phase, clip progress; objects measured once at the episode start (5 mm / 2 deg) and the measured holder offsets (5 mm / 2 deg) with the re-anchoring arm-command delta; NEW wrist_ref: the reference wrist pose re-anchored with the measured holders, relative to forward kinematics of the measured arm joints (end-effector guidance). No in-hand object reference, no camera estimate, no object state after the start, no contacts. Env = KA's (task, holders +-5 cm / +-10 deg, 88 hole pairs, DR dr_rr1_kv3_zeta + observation noise of the 11-05 plumbing test, group / thumb press scales, VOC 0).",
+ "task": "../../tasks/task_kin_noprior_press",
+ "out": "../runs/student_kin_tc_s5_depth_g3",
+ "teacher_config": "../../tracker/configs/kin_tc_s5.json",
+ "teacher_ckpt": "../../results/kin_tc_s5/final.pt",
+ "num_envs": 4096,
+ "seed": 5,
+ "wall_hours": 4.5,
+ "max_iters": 680,
+ "steps_per_iter": 24,
+ "buffer_iters": 8,
+ "epochs": 1,
+ "minibatch": 16384,
+ "lr": 0.001,
+ "lr_end": 0.0002,
+ "beta_iters": 50,
+ "hidden": [
+  512,
+  256,
+  128
+ ],
+ "latest_minutes": 5,
+ "ckpt_minutes": 30,
+ "dr": {
+  "kp_g1": [
+   0.5,
+   2.0
+  ],
+  "kv_g1": [
+   0.7,
+   1.4
+  ],
+  "kp_hand": [
+   0.7,
+   1.4
+  ],
+  "kv_hand": [
+   2.1,
+   4.2
+  ],
+  "friction_hand_object": [
+   0.7,
+   1.3
+  ],
+  "friction_pipette_tube": [
+   0.7,
+   1.3
+  ],
+  "object_mass": [
+   0.8,
+   1.2
+  ],
+  "joint_offset_g1": 0.01,
+  "joint_offset_hand": 0.02,
+  "object_start_xy_mm": 2.0,
+  "object_start_yaw_deg": 3.0,
+  "kv_g1_x_sqrt_kp": [
+   0.95,
+   1.4
+  ],
+  "obs_q_std_g1": 0.005,
+  "obs_q_std_hand": 0.01,
+  "obs_v_std_g1": 0.05
+ },
+ "group_scale": {
+  "FR": 0.1,
+  "AR": 0.04,
+  "FL": 0.05,
+  "AL": 0.04
+ },
+ "plunger_weight": 8.0,
+ "thumb_press_scale": 2.0,
+ "reward_scale": 0.01,
+ "extras": {
+  "real_cmd": true,
+  "ema_alpha": 0.5,
+  "holder": {
+   "stand_xy_mm": 50,
+   "stand_yaw_deg": 10,
+   "rack_xy_mm": 50,
+   "rack_yaw_deg": 10,
+   "blend_s": 1.5,
+   "meas_xy_mm": 5,
+   "meas_yaw_deg": 2,
+   "hole_pairs": [
+    [
+     "r0c0",
+     "r0c0"
+    ],
+    [
+     "r0c0",
+     "r0c1"
+    ],
+    [
+     "r0c0",
+     "r0c2"
+    ],
+    [
+     "r0c0",
+     "r0c3"
+    ],
+    [
+     "r0c0",
+     "r0c4"
+    ],
+    [
+     "r0c0",
+     "r1c0"
+    ],
+    [
+     "r0c0",
+     "r1c1"
+    ],
+    [
+     "r0c0",
+     "r1c2"
+    ],
+    [
+     "r0c0",
+     "r1c3"
+    ],
+    [
+     "r0c0",
+     "r1c4"
+    ],
+    [
+     "r0c1",
+     "r0c0"
+    ],
+    [
+     "r0c1",
+     "r0c1"
+    ],
+    [
+     "r0c1",
+     "r0c2"
+    ],
+    [
+     "r0c1",
+     "r0c3"
+    ],
+    [
+     "r0c1",
+     "r0c4"
+    ],
+    [
+     "r0c1",
+     "r1c0"
+    ],
+    [
+     "r0c1",
+     "r1c1"
+    ],
+    [
+     "r0c1",
+     "r1c2"
+    ],
+    [
+     "r0c1",
+     "r1c3"
+    ],
+    [
+     "r0c2",
+     "r0c0"
+    ],
+    [
+     "r0c2",
+     "r0c1"
+    ],
+    [
+     "r0c2",
+     "r0c2"
+    ],
+    [
+     "r0c2",
+     "r0c3"
+    ],
+    [
+     "r0c2",
+     "r0c4"
+    ],
+    [
+     "r0c2",
+     "r1c0"
+    ],
+    [
+     "r0c2",
+     "r1c1"
+    ],
+    [
+     "r0c2",
+     "r1c2"
+    ],
+    [
+     "r0c2",
+     "r1c3"
+    ],
+    [
+     "r0c2",
+     "r1c4"
+    ],
+    [
+     "r0c3",
+     "r0c0"
+    ],
+    [
+     "r0c3",
+     "r0c1"
+    ],
+    [
+     "r0c3",
+     "r0c2"
+    ],
+    [
+     "r0c3",
+     "r0c3"
+    ],
+    [
+     "r0c3",
+     "r0c4"
+    ],
+    [
+     "r0c3",
+     "r1c0"
+    ],
+    [
+     "r0c3",
+     "r1c1"
+    ],
+    [
+     "r0c3",
+     "r1c2"
+    ],
+    [
+     "r0c3",
+     "r1c3"
+    ],
+    [
+     "r0c3",
+     "r1c4"
+    ],
+    [
+     "r0c4",
+     "r0c0"
+    ],
+    [
+     "r0c4",
+     "r0c1"
+    ],
+    [
+     "r0c4",
+     "r0c2"
+    ],
+    [
+     "r0c4",
+     "r0c3"
+    ],
+    [
+     "r0c4",
+     "r0c4"
+    ],
+    [
+     "r0c4",
+     "r1c0"
+    ],
+    [
+     "r0c4",
+     "r1c1"
+    ],
+    [
+     "r0c4",
+     "r1c2"
+    ],
+    [
+     "r0c4",
+     "r1c3"
+    ],
+    [
+     "r0c4",
+     "r1c4"
+    ],
+    [
+     "r1c1",
+     "r0c0"
+    ],
+    [
+     "r1c1",
+     "r0c1"
+    ],
+    [
+     "r1c1",
+     "r0c2"
+    ],
+    [
+     "r1c1",
+     "r0c3"
+    ],
+    [
+     "r1c1",
+     "r0c4"
+    ],
+    [
+     "r1c1",
+     "r1c0"
+    ],
+    [
+     "r1c1",
+     "r1c1"
+    ],
+    [
+     "r1c1",
+     "r1c2"
+    ],
+    [
+     "r1c1",
+     "r1c3"
+    ],
+    [
+     "r1c1",
+     "r1c4"
+    ],
+    [
+     "r1c2",
+     "r0c1"
+    ],
+    [
+     "r1c2",
+     "r0c2"
+    ],
+    [
+     "r1c2",
+     "r0c3"
+    ],
+    [
+     "r1c2",
+     "r0c4"
+    ],
+    [
+     "r1c2",
+     "r1c0"
+    ],
+    [
+     "r1c2",
+     "r1c1"
+    ],
+    [
+     "r1c2",
+     "r1c2"
+    ],
+    [
+     "r1c2",
+     "r1c3"
+    ],
+    [
+     "r1c2",
+     "r1c4"
+    ],
+    [
+     "r1c3",
+     "r0c0"
+    ],
+    [
+     "r1c3",
+     "r0c1"
+    ],
+    [
+     "r1c3",
+     "r0c2"
+    ],
+    [
+     "r1c3",
+     "r0c3"
+    ],
+    [
+     "r1c3",
+     "r0c4"
+    ],
+    [
+     "r1c3",
+     "r1c0"
+    ],
+    [
+     "r1c3",
+     "r1c1"
+    ],
+    [
+     "r1c3",
+     "r1c2"
+    ],
+    [
+     "r1c3",
+     "r1c3"
+    ],
+    [
+     "r1c3",
+     "r1c4"
+    ],
+    [
+     "r1c4",
+     "r0c0"
+    ],
+    [
+     "r1c4",
+     "r0c1"
+    ],
+    [
+     "r1c4",
+     "r0c2"
+    ],
+    [
+     "r1c4",
+     "r0c3"
+    ],
+    [
+     "r1c4",
+     "r0c4"
+    ],
+    [
+     "r1c4",
+     "r1c0"
+    ],
+    [
+     "r1c4",
+     "r1c1"
+    ],
+    [
+     "r1c4",
+     "r1c2"
+    ],
+    [
+     "r1c4",
+     "r1c3"
+    ],
+    [
+     "r1c4",
+     "r1c4"
+    ]
+   ],
+   "engage_fix": true,
+   "hole_centres": "scene"
+  },
+  "w": {
+   "contact_set": 0.0,
+   "contact_graph": 0.0,
+   "wrench_support": 0.0,
+   "free_finger_acc": 0.0,
+   "action_rate": 0.5,
+   "elbow_height": 50.0,
+   "joint_margin": 1.0,
+   "finger_jerk": 0.2,
+   "thumb_prior": 0.5,
+   "posture": 0.1,
+   "finger_band": 3.0,
+   "tube_tilt": 1.0,
+   "arm_band": 1.0,
+   "finger_still": 1.0,
+   "pipette_seat": 1.0,
+   "contact_keep": 0.5,
+   "contact_drift": 0.5,
+   "contact_slip": 0.5,
+   "wrench_margin": 0.5
+  },
+  "cmd_hz": 100,
+  "clamp_after_ff": true,
+  "band_on_deviation": true,
+  "temporal_off_gates": [
+   "gate_grasp_shift_right",
+   "gate_grasp_shift_left",
+   "gate_regrasp"
+  ],
+  "student": {
+   "meas_pos_mm": 5,
+   "meas_yaw_deg": 2,
+   "wrist_ref": true,
+   "depth": {
+    "res": [
+     96,
+     72
+    ],
+    "every": 2,
+    "aux_inhand": 1.0
+   }
+  }
+ }
+}

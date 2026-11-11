@@ -28,7 +28,7 @@ task = rel(C['task']); dr = None if a0.no_dr else (C.get('dr') if isinstance(C.g
 r = np.load(task/'reference.npz'); t = r['timestamps']; nfr = len(t)
 starts = [k-(k % 2) for k in np.arange(0, nfr-200, int(round(a0.every_s/.01)))]*a0.repeat; N = len(starts)
 if a0.from_start: starts = [0]*a0.from_start; N = len(starts)
-kw = dict(dr=dr, extras=C.get('extras', {}), reward_scale=C.get('reward_scale', .01))
+kw = dict(dr=dr, extras={k_: v_ for k_, v_ in C.get('extras', {}).items() if k_ != 'perturb'}, reward_scale=C.get('reward_scale', .01))   # (11-12) no hand pushes in evals
 for k in ('arm_scale', 'finger_scale', 'group_scale', 'thumb_press_scale', 'plunger_weight'):   # tracker: thumb_press_scale must match training
     if C.get(k) is not None: kw[k] = C[k]
 if a0.student: kw['obs_mode'] = 'deployable'

@@ -120,7 +120,7 @@ class BimanualGpuEnv(VR.BimanualGpuEnv):
         off = self.joff*self._offset_weight(self.substeps*self.dt/2)[:, None] if self.dr is not None else None
         if self.base_off is not None: self.mf['body_pos'][:, self.pelvis, :2] = self.m0['body_pos'][self.pelvis, :2]+self.base_off*self._offset_weight(self.substeps*self.dt)[:, None]
         X.holder_step(self, self.frame.clamp(max=self.nframes-1))
-        base = self.frame*self.per_frame; X.begin_step(self, rapp, base)
+        base = self.frame*self.per_frame; X.begin_step(self, rapp, base); X.perturb_step(self)   # (11-12) hand pushes (wrists; VOC forces act on the objects)
         last = len(self.cmd_sim)-1
         for s in range(self.substeps):
             self.x_sub = s

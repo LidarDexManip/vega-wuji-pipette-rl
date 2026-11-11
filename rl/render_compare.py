@@ -5,6 +5,8 @@ smoothed (1 s Savitzky-Golay) wrist-object midpoint from a fixed direction, so h
 Render only: MuJoCo task scene proxies (scene.xml), no LIDAR visuals; layer label burned in.
   MUJOCO_GL=egl python render_compare.py SCENE.xml OUT_DIR --run DIR LABEL [--run ...] --world 2 [--slow 1] [--t0 T --t1 T] [--px 480]
   --ref TASK_DIR LABEL (rows first): a task's reference.npz qpos_ref, kinematics only (nominal holders); --trail S: wrist paths of the last S s.
+  (11-11) a run whose world_<i>.npz carries 'depth' (record_rollouts.py --student, depth student) gets a 4th tile: the two wrist depth
+  images exactly as the student received them (noise, holes, 40 ms latency), right wrist on top; other rows get a note tile.
 Writes OUT_DIR/compare_world<W>.mp4 (all rows) and OUT_DIR/<LABEL>_world<W>.mp4 (one row each)."""
 import argparse, json, re, subprocess
 from pathlib import Path
@@ -27,12 +29,12 @@ B = {n: m.body(n).id for n in ('base_link', 'right_wrist', 'left_wrist', 'right_
 
 runs = []
 for t_, lab in a.ref:
-    Q = np.load(Path(t_)/'reference.npz')['qpos_ref'][::2]
-    runs.append(dict(Q=Q, T=np.arange(len(Q))*.02, lab=lab, info={'note': 'replay of reference.npz qpos_ref (no RL policy)'}))
+    rz_ = np.load(Path(t_)/'reference.npz'); Q = rz_['qpos_ref'][::2]   # (11-12) the reference's own clock (demo tasks start at 3.0 s, not 0)
+    runs.append(dict(Q=Q, T=rz_['timestamps'][::2], lab=lab, info={'note': 'replay of reference.npz qpos_ref (no RL policy)'}))
 if not a.run and not a.ref: p.error('give --run and / or --ref')
 for d_, lab in a.run:
     d_ = Path(d_); z = np.load(d_/f'world_{a.world}.npz'); info = json.loads((d_/'summary.json').read_text())['worlds'][a.world]
-    runs.append(dict(Q=z['qpos'], T=z['time'], lab=lab, info=info))
+    runs.append(dict(Q=z['qpos'], T=z['time'], lab=lab, info=info, **({'DEP': z['depth'], 'DEPT': z['depth_t']} if 'depth' in z.files else {})))
 T = runs[0]['T']; sel = np.ones(len(T), bool)
 if a.t0 is not None: sel &= T >= a.t0
 if a.t1 is not None: sel &= T <= a.t1
@@ -115,6 +117,32 @@ def outcome(info):
     return f"outcome: failure at t = {info['first_fail_s']:.2f} s" + (f' ({why})' if why else '')
 
 
+DW = 2*S//3 if any('DEP' in R for R in runs) else 0   # depth tile width (two 4:3 images stacked)
+
+
+VIR = np.array([[253, 231, 37], [94, 201, 98], [33, 145, 140], [59, 82, 139], [68, 1, 84]], np.float32)   # viridis anchors, near -> far
+
+
+def depth_rgb(z):
+    """int16 mm -> RGB: 5 cm (yellow) .. 30 cm and beyond (dark purple), viridis; invalid (0) = black."""
+    v = np.clip((z.astype(np.float32)-50.)/250., 0, 1)*(len(VIR)-1); i = np.minimum(v.astype(int), len(VIR)-2); f = (v-i)[..., None]
+    im = ((1-f)*VIR[i]+f*VIR[i+1]).astype(np.uint8); im[z <= 0] = 0; return im
+
+
+def depth_tile(R, i):
+    h = S//2; tile = Image.new('RGB', (DW, S), (24, 24, 24)); dr = ImageDraw.Draw(tile)
+    if 'DEP' not in R:
+        for j, txt in enumerate(('no camera:', 'the teacher observes the', 'true object / contact state')): dr.text((10, 10+20*j), txt, font=F1, fill=(200, 200, 200))
+        return np.asarray(tile)
+    k = int(np.searchsorted(R['DEPT'], i, side='right'))-1
+    for j, side in enumerate(('right wrist (pipette)', 'left wrist (tube)')):
+        if k >= 0: tile.paste(Image.fromarray(depth_rgb(R['DEP'][k, j])).resize((DW, h), Image.NEAREST), (0, j*h))
+        label_at = ImageDraw.Draw(tile); bb = label_at.textbbox((6, j*h+4), side, font=F1); label_at.rectangle([bb[0]-3, bb[1]-2, bb[2]+3, bb[3]+2], fill=(0, 0, 0)); label_at.text((6, j*h+4), side, font=F1, fill=(255, 255, 255))
+    dr = ImageDraw.Draw(tile); txt = 'yellow 5 cm .. purple 30+ cm, black: none'; bb = dr.textbbox((6, S-44), txt, font=F1); dr.rectangle([bb[0]-3, bb[1]-2, bb[2]+3, bb[3]+2], fill=(0, 0, 0)); dr.text((6, S-44), txt, font=F1, fill=(255, 255, 255))
+    txt = 'student depth input (96x72, as given)'; bb = dr.textbbox((6, S-22), txt, font=F1); dr.rectangle([bb[0]-3, bb[1]-2, bb[2]+3, bb[3]+2], fill=(0, 0, 0)); dr.text((6, S-22), txt, font=F1, fill=(255, 255, 255))
+    return np.asarray(tile)
+
+
 def row(R, i):
     place_holders(R['info'].get('spec')); q = R['Q'][i]; d.qpos[:] = q; mujoco.mj_kinematics(m, d); tiles = []
     for c, title in ((cam(OV['lookat'], OV['azimuth'], OV['elevation'], OV['distance']), 'overview'),
@@ -126,6 +154,7 @@ def row(R, i):
         lines = [(title, F1)]
         if title == 'overview': lines = [(R['lab'], FB), (f"t = {R['T'][i]:5.2f} s  |  {'%.2gx slow motion' % (1/a.slow) if a.slow > 1 else 'real time'}, 50 Hz frames", F1), (outcome(R['info']), F1)] + ([(spec_line(R['info']), F1)] if spec_line(R['info']) else [])
         tiles.append(np.asarray(label(img, lines)))
+    if DW: tiles.append(depth_tile(R, i))
     return np.concatenate(tiles, 1)
 
 
@@ -135,7 +164,7 @@ def writer(path, w, h):
                              '-c:v', 'libx264', '-crf', '20', '-pix_fmt', 'yuv420p', str(path)], stdin=subprocess.PIPE)
 safe = lambda s: re.sub(r'[^A-Za-z0-9]+', '_', s).strip('_')
 sfx = f'_world{a.world}{a.tag}'
-W_ = 3*S; outs = {'all': writer(a.out/f'compare{sfx}.mp4', W_, S*len(runs))}
+W_ = 3*S+DW; outs = {'all': writer(a.out/f'compare{sfx}.mp4', W_, S*len(runs))}
 names = [safe(R['lab'].split(' ')[0]) for R in runs]
 if len(set(names)) < len(names): names = [f'row{i}_{n}' for i, n in enumerate(names)]   # first words collide: keep one file per row
 for R, nm in zip(runs, names): outs[R['lab']] = writer(a.out/f'{nm}{sfx}.mp4', W_, S)

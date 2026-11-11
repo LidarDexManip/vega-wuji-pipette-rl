@@ -1,0 +1,26 @@
+{
+ "layer": "kinematic reference labels (signed distance <= 2.0 mm, explicit pairs; no physics)",
+ "links": 42,
+ "frames": 1959,
+ "pairs": 525,
+ "contact_fraction_per_finger": {
+  "r_thumb": 0.0,
+  "r_index": 0.725,
+  "r_middle": 0.725,
+  "r_ring": 0.722,
+  "r_pinky": 0.722,
+  "l_thumb": 0.693,
+  "l_index": 0.687,
+  "l_middle": 0.722,
+  "l_ring": 0.096,
+  "l_pinky": 0.0
+ },
+ "links_in_contact_while_held_p50": {
+  "right": 14.0,
+  "left": 3.0
+ },
+ "deepest_penetration_mm_while_held": {
+  "right": -1.0,
+  "left": -3.3
+ }
+}

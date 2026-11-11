@@ -1,0 +1,114 @@
+{
+ "task": "../../tasks/task_d02_straight_v2",
+ "out": "../runs/kin_d02v2_ft_g3",
+ "num_envs": 4096,
+ "max_env_steps": 600000000.0,
+ "wall_hours": 8.0,
+ "ckpt_minutes": 60,
+ "latest_minutes": 5,
+ "dr": "../../rl/configs/dr_rr1_kv3_zeta.json",
+ "init_std": 0.1,
+ "reward_scale": 0.01,
+ "group_scale": {
+  "FR": 0.1,
+  "AR": 0.04,
+  "FL": 0.05,
+  "AL": 0.04
+ },
+ "extras": {
+  "real_cmd": true,
+  "ema_alpha": 0.5,
+  "holder": {
+   "stand_xy_mm": 50,
+   "stand_yaw_deg": 10,
+   "rack_xy_mm": 50,
+   "rack_yaw_deg": 10,
+   "blend_s": 1.5,
+   "meas_xy_mm": 5,
+   "meas_yaw_deg": 2,
+   "hole_pairs": [
+    [
+     "r0c1",
+     "r1c4"
+    ],
+    [
+     "r1c2",
+     "r0c0"
+    ]
+   ],
+   "engage_fix": true,
+   "hole_centres": "scene",
+   "meas_model": {
+    "errors": "ego/errors.npz",
+    "scale": 1.25,
+    "extra_xy_mm": 1.0,
+    "extra_yaw_deg": 0.5,
+    "extra_tube_mm": 1.0,
+    "pipette_xy_mm": 2.0,
+    "pipette_yaw_deg": 1.5
+   }
+  },
+  "w": {
+   "contact_set": 0.0,
+   "contact_graph": 0.0,
+   "wrench_support": 0.0,
+   "free_finger_acc": 0.0,
+   "action_rate": 0.5,
+   "elbow_height": 50.0,
+   "joint_margin": 1.0,
+   "finger_jerk": 0.2,
+   "thumb_prior": 0.5,
+   "posture": 0.1,
+   "finger_band": 3.0,
+   "tube_tilt": 1.0,
+   "arm_band": 1.0,
+   "finger_still": 1.0,
+   "pipette_seat": 1.0,
+   "contact_keep": 0.5,
+   "contact_drift": 0.5,
+   "contact_slip": 0.5,
+   "wrench_margin": 0.5
+  },
+  "cmd_hz": 100,
+  "clamp_after_ff": true,
+  "band_on_deviation": true,
+  "temporal_off_gates": [
+   "gate_grasp_shift_right",
+   "gate_grasp_shift_left",
+   "gate_regrasp"
+  ]
+ },
+ "seed": 5,
+ "ckpt_steps": 50000000.0,
+ "caps": {
+  "coeff": 0.1,
+  "norm": 0.01,
+  "cap": 25.0,
+  "pairs": 8192
+ },
+ "tracker": {
+  "voc_start": 1.0,
+  "voc_kp": 2000.0,
+  "voc_kd": 90.0,
+  "voc_free_frac": 0.1,
+  "warp": [
+   1.0,
+   1.0
+  ],
+  "curriculum": {
+   "success_threshold": 0.6,
+   "window_its": 5,
+   "factor": 0.8,
+   "floor": 0.05,
+   "min_its_per_level": 20
+  },
+  "press_progress_w": 2.0,
+  "voc_zero_by_steps": [
+   100000000.0,
+   300000000.0
+  ]
+ },
+ "plunger_weight": 8.0,
+ "thumb_press_scale": 2.0,
+ "_note": "11-11 eval only: kin_d02v2_eval_crosshole.json + extras.holder.meas_model of rl/configs/student_d02v2_ego.json (head-camera estimate errors, x1.25 + extra noise), so the teacher is measured under the same holder / object estimate as the student. 11-11 kin_d02v2_ft_g3 eval (task_d02_straight_v2), info only: CROSS-hole pairs [['r0c1', 'r1c4'], ['r1c2', 'r0c0']] (never trained: d02 trains every hole back into itself, which is the task spec); tests whether the policy follows the commanded place hole; everything else as kin_d02_s5_g3.json"
+}

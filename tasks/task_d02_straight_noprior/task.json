@@ -1,0 +1,329 @@
+{
+ "mode": "TRACKER kinematic reference from a do-as-i-do RGB-D demo (robot square to the table, ground-truth holders)",
+ "created": "2026-11-10 22:24:45",
+ "command": "tracker/build_demo_task.py /home/jren313/Projects/datasets/pipette-tasks/pipette_depth_02_tapir tasks/task_d02_straight_noprior --fwd 0.30 --force",
+ "episode": "/home/jren313/Projects/datasets/pipette-tasks/pipette_depth_02_tapir",
+ "template": "/home/jren313/Projects/vega-wuji-pipette-rl/tasks/task_kin_noprior_press",
+ "template_reference_sha": "b5df65abc9b0a025",
+ "sim_dt": 0.0025,
+ "frames_100hz": 1674,
+ "ctrl_rows": 6692,
+ "window_demo_s": [
+  3.0,
+  19.73
+ ],
+ "phases": {
+  "lift": 5.5,
+  "press_on": 11.55,
+  "press_off": 14.19
+ },
+ "ref_holes": [
+  "r1c1",
+  "r1c1"
+ ],
+ "tube_slip_window_s": [
+  8.533333333333333,
+  18.133333333333333
+ ],
+ "base_kind": "kinematic",
+ "prior": "none",
+ "plunger_ref_max_mm": 13.4,
+ "robot_base": {
+  "xy": [
+   0.890829257623,
+   0.0
+  ],
+  "yaw_deg": 180.0
+ },
+ "build": {
+  "episode": "/home/jren313/Projects/datasets/pipette-tasks/pipette_depth_02_tapir",
+  "args": {
+   "episode": "/home/jren313/Projects/datasets/pipette-tasks/pipette_depth_02_tapir",
+   "out": "tasks/task_d02_straight_noprior",
+   "fwd": 0.3,
+   "lat": 0.0,
+   "base_x": 0.890829257623,
+   "base_y": 0.0,
+   "hole": "r1c1",
+   "blend_s": 1.5,
+   "smooth_s": 0.08,
+   "win_right": [
+    7.0,
+    9.5
+   ],
+   "win_left": [
+    10.5,
+    14.5
+   ],
+   "pre_s": 2.5,
+   "post_s": 1.6,
+   "midair": null,
+   "grasp": "template",
+   "force": true
+  },
+  "table": {
+   "cam_height": 0.6303890340066639,
+   "edge_yaw_deg": 5.913800275735999,
+   "edge_inliers": [
+    55,
+    145
+   ],
+   "edge_dist_m": 0.8777559977149977
+  },
+  "events_demo_s": {
+   "pipette_lift": 5.5,
+   "pipette_seat": 16.37,
+   "tube_lift": 8.53,
+   "tube_seat": 18.13
+  },
+  "holders": {
+   "stand_shift_m": [
+    0.173,
+    -0.1174,
+    0.0
+   ],
+   "stand_yaw_change_deg": 11.32,
+   "rack_shift_m": [
+    0.083,
+    0.1165,
+    0.0
+   ],
+   "hole": "r1c1",
+   "pipette_seat_world": [
+    0.2752,
+    0.1752,
+    0.8609
+   ],
+   "tube_seat_world": [
+    0.2744,
+    -0.1464,
+    0.7856
+   ],
+   "demo_end_vs_start_pipette_mm": 4.3,
+   "demo_end_vs_start_tube_rim_mm": 2.9,
+   "demo_tube_tilt_in_rack_deg": 13.8,
+   "demo_pipette_tilt_in_stand_deg": 1.9
+  },
+  "scene": {
+   "moved_geoms": {
+    "stand": 233,
+    "rack": 531
+   },
+   "nq": 75,
+   "nu": 54
+  },
+  "grasp": {
+   "right": {
+    "source": "template latched grasp",
+    "latched_frame_s": 11.33,
+    "open_frame_s": 3.03,
+    "obj_in_wrist_cm": [
+     -7.1,
+     2.5,
+     -8.5
+    ],
+    "spread_mm_max": 9.7
+   },
+   "left": {
+    "source": "template latched grasp",
+    "latched_frame_s": 14.58,
+    "open_frame_s": 6.4,
+    "obj_in_wrist_cm": [
+     -2.7,
+     -9.0,
+     -9.5
+    ],
+    "spread_mm_max": 5.2
+   }
+  },
+  "holder_boxes_world": {
+   "stand": [
+    0.257,
+    0.317,
+    0.147,
+    0.206,
+    0.836
+   ],
+   "rack": [
+    0.22,
+    0.402,
+    -0.205,
+    -0.127,
+    0.78
+   ]
+  },
+  "clear_of_holder_s": {
+   "pipette": [
+    5.85,
+    15.66
+   ],
+   "tube": [
+    8.82,
+    17.16
+   ]
+  },
+  "midair_search": {
+   "method": "continuous-path IK (warm-started frame to frame, 3 start configurations, every 40 ms), max over the path of mm + deg",
+   "chosen": {
+    "dz_m": -0.1,
+    "dfwd_m": 0.1,
+    "tilt_scale": 0.6,
+    "dlat_left_m": 0.1,
+    "spin_pipette_deg": 30,
+    "spin_tube_deg": 0,
+    "path_cost_max_right": 0.6,
+    "path_cost_max_left": 0.0
+   },
+   "path_cost_max_per_spin_at_chosen_shift": {
+    "spins_deg": [
+     -180.0,
+     -150.0,
+     -120.0,
+     -90.0,
+     -60.0,
+     -30.0,
+     0.0,
+     30.0,
+     60.0,
+     90.0,
+     120.0,
+     150.0
+    ],
+    "right": [
+     489.7,
+     557.0,
+     513.8,
+     466.7,
+     499.7,
+     202.8,
+     34.8,
+     0.6,
+     0.2,
+     1.9,
+     124.3,
+     248.1
+    ],
+    "left": [
+     557.0,
+     327.2,
+     297.6,
+     192.0,
+     0.0,
+     0.0,
+     0.0,
+     4.2,
+     253.7,
+     314.0,
+     424.4,
+     503.0
+    ]
+   },
+   "best_feasible_count": 26
+  },
+  "tip_in_tube": {
+   "window_s": [
+    11.55,
+    14.19
+   ],
+   "tip_depth_below_rim_mm_min_max": [
+    25.8,
+    75.0
+   ]
+  },
+  "object_speed": {
+   "pipette": {
+    "lin_max_m_s": 0.97,
+    "ang_max_deg_s": 64.0,
+    "ang_max_at_s": 6.71
+   },
+   "tube": {
+    "lin_max_m_s": 0.35,
+    "ang_max_deg_s": 30.0,
+    "ang_max_at_s": 9.45
+   }
+  },
+  "ik": {
+   "right": {
+    "pos_mm_p50_max": [
+     0.0,
+     0.09
+    ],
+    "rot_deg_max": 0.04,
+    "max_step_deg": 3.3,
+    "margin_to_limit_deg_min": 1.1,
+    "frames_over_2mm_or_2deg": 0,
+    "worst_times_s": [
+     6.28,
+     6.27,
+     6.29,
+     6.26,
+     6.3
+    ],
+    "max_joint_speed_rad_s": 1.38,
+    "frames_over_2rad_s": 0,
+    "fastest_times_s": [
+     5.51,
+     5.52,
+     5.5
+    ]
+   },
+   "left": {
+    "pos_mm_p50_max": [
+     0.0,
+     0.01
+    ],
+    "rot_deg_max": 0.0,
+    "max_step_deg": 1.75,
+    "margin_to_limit_deg_min": 13.7,
+    "frames_over_2mm_or_2deg": 0,
+    "worst_times_s": [
+     8.55,
+     18.14,
+     8.78,
+     8.8,
+     8.76
+    ],
+    "max_joint_speed_rad_s": 1.32,
+    "frames_over_2rad_s": 0,
+    "fastest_times_s": [
+     8.79,
+     8.8,
+     8.78
+    ]
+   }
+  },
+  "thumb_open_clearance_mm": {
+   "right": {
+    "template_open": -10.5,
+    "replaced_deg": [
+     38.5,
+     -85.0,
+     15.0,
+     50.0
+    ],
+    "clearance": 10.8
+   },
+   "left": {
+    "template_open": -0.1
+   }
+  },
+  "thumb_on_cap_residual_mm_p50_max": [
+   0.03,
+   0.19
+  ],
+  "reference_penetrations_gt3mm": {
+   "left_object|right_object": {
+    "frames": 3,
+    "worst_mm": -4.3,
+    "first_s": 11.5,
+    "last_s": 11.5
+   },
+   "left_object|left_ring_finger_distal": {
+    "frames": 4,
+    "worst_mm": -3.3,
+    "first_s": 7.7,
+    "last_s": 18.65
+   }
+  }
+ }
+}

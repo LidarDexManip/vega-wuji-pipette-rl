@@ -38,6 +38,8 @@ Everything here is **simulation**. Nothing has run on the real robot yet. Each n
 | 3 | **Residual-PPO teacher** (MuJoCo Warp, GPU) | The policy adds a joint-space residual on top of layer 2's executed ctrl, under heavy randomisation. | `rl/`, `rl/configs/`, `results/<run>/final.pt`, `videos/`. Rounds R1–R3 (§3), tc line (§4). |
 | 4 | **DAgger student** (deployable observations) | `rl/distill.py`. Only plumbing-tested so far. | `results/student_plumb/` |
 | — | Tracker (WIP) | One RL policy for any kinematic reference, with no per-video MPC. | `tracker/`. KA / KB (§4) are residual teachers on the kinematic reference, with no MPC base: `results/kin_tc*_s5/`. |
+| 1′ | Retargeted RGB-D demo (HF `ytung/pipette-tasks`) → **task** | One command: robot square to the table, ground-truth holders, reachable continuous arm paths, checks, training configs. See [docs/DEMO_TO_TASK.md](docs/DEMO_TO_TASK.md). | `tracker/demo_to_task.py`, `tracker/build_demo_task.py`, `tasks/task_d02_straight_v2/` (smooth extraction; teacher `kin_d02v2_ft_g3`, fine-tuned from `kin_d02_s5_g3`). |
+| 1″ | Head-camera (ego) estimate of the holders and the tube | One depth frame at the start → stand / rack pose, tube position and pick hole; its error model drives the student's holder measurement. See [docs/EGO_HOLDERS.md](docs/EGO_HOLDERS.md). | `perception/ego_holders.py`, `tasks/task_d02_straight_v2/ego/`, student config `rl/configs/student_d02v2_ego.json`. |
 
 ## 2. RL setup (teacher, layer 3)
 

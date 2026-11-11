@@ -15,9 +15,9 @@ import gpu_train as GT
 
 p = argparse.ArgumentParser(); p.add_argument('config', type=Path); p.add_argument('--ckpt', type=Path); p.add_argument('--envs', type=int, default=512)
 p.add_argument('--steps', type=int, default=300); p.add_argument('--noise-std', type=float, default=0.); p.add_argument('--out', type=Path); a0 = p.parse_args()
-C = json.loads(a0.config.read_text()); rel = lambda x: (x if Path(x).is_absolute() else (a0.config.parent/x)).resolve()
+C = json.loads(a0.config.read_text()); rel = lambda x: (Path(x) if Path(x).is_absolute() else (a0.config.parent/x)).resolve()
 dr = C.get('dr') if isinstance(C.get('dr'), dict) or C.get('dr') is None else json.loads(rel(C['dr']).read_text())
-kw = dict(dr=dr, extras=C.get('extras', {}), reward_scale=C.get('reward_scale', .01))
+kw = dict(dr=dr, extras={k_: v_ for k_, v_ in C.get('extras', {}).items() if k_ != 'perturb'}, reward_scale=C.get('reward_scale', .01))   # (11-12) no hand pushes in evals
 for k in ('arm_scale', 'finger_scale', 'group_scale', 'thumb_press_scale', 'plunger_weight'):   # (11-09) tracker configs: must match training
     if C.get(k) is not None: kw[k] = C[k]
 N = a0.envs

@@ -4,6 +4,7 @@
 """
 import json, sys
 from pathlib import Path
+import math
 import numpy as np, torch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'common'))
 import rewards as RW
@@ -11,7 +12,9 @@ import rewards as RW
 DEFAULT = {'real_cmd': True, 'margin_rad': .1, 'speed_cap': 2.5, 'ema_alpha': None, 'cmd_hz': None, 'vel_ff': True, 'clamp_after_ff': False, 'band_on_deviation': False, 'event_gate': None,
            'w': {'contact_set': 0., 'contact_graph': 0., 'wrench_support': 0., 'free_finger_acc': 0., 'action_rate': 0., 'elbow_height': 50., 'joint_margin': 0.,
                  'finger_jerk': 0., 'thumb_prior': 0., 'posture': 0., 'finger_band': 0., 'tube_tilt': 0., 'arm_band': 0., 'finger_still': 0., 'pipette_seat': 0.,
-                 'contact_keep': 0., 'contact_drift': 0., 'contact_slip': 0., 'wrench_margin': 0., 'torque_rate_arm': 0., 'torque_rate_finger': 0.},
+                 'contact_keep': 0., 'contact_drift': 0., 'contact_slip': 0., 'wrench_margin': 0., 'torque_rate_arm': 0., 'torque_rate_finger': 0., 'tip_align': 0.},
+           # (11-12) pipette tip vs the tube (tip_init): 'tip': {'obs': privileged teacher observation, sigmas of the tip_align kernel}
+           'tip': {'obs': False, 'sigma_coarse_mm': 20., 'sigma_fine_mm': 4., 'sigma_ang_deg': 8., 'obs_scale_mm': 20., 'obs_clip': 5.},
            # (11-09) torque rate (torque_rate_terms): change of the control-step mean actuator torque (averaged over the substeps, so nothing
            # above 25 Hz aliases in) between control steps, / (torque_rate_frac x the actuator's torque limit), squared, mean over the arm /
            # finger actuators, capped at torque_rate_cap. action_rate_norm (None = the old raw rad^2): action rate on the normalised actions,
@@ -354,6 +357,13 @@ def reward(env, r, k):
         tilt = torch.arccos((loc[:, :3, 2]*rz).sum(-1).clamp(-1, 1))   # rad; seat misses were ~8 deg in hand -> jam ~5 mm high
         pen['tube_tilt'] = torch.where(env.x_tube_held[k], (tilt/.05)**2, torch.zeros_like(tilt))   # 1 = 0.05 rad (2.9 deg)
         terms['_tube_tilt_deg'] = torch.rad2deg(tilt)
+    if getattr(env, 'x_tip', None) is not None:   # (11-12) pipette tip / axis in the TUBE frame vs the reference's, gated approach .. extraction end
+        rel, ax = tip_state(env); T = env.x_tip; c = T['cfg']; g = T['gate'][k]; e = rel-T['ref'][k]; lat = e[:, :2].norm(dim=-1)
+        dd = torch.sqrt(lat**2+(.5*e[:, 2])**2); ang = torch.arccos((ax*T['ax'][k]).sum(-1).clamp(-1, 1))
+        kern = (.5*torch.exp(-(dd/(c['sigma_coarse_mm']*1e-3))**2)+.5*torch.exp(-(dd/(c['sigma_fine_mm']*1e-3))**2))*torch.exp(-(ang/math.radians(c['sigma_ang_deg']))**2)
+        terms['tip_align'] = torch.where(g, kern, torch.zeros_like(kern))
+        terms['_tip_lat_mm_gated'] = torch.where(g, lat*1e3, torch.zeros_like(lat)); terms['_tip_gate'] = g.float()
+        inb = (rel[:, :2].norm(dim=-1) < .0129-.0018) & (rel[:, 2] < .0638-.005); terms['_tip_in_bore_ref_in'] = (T['inref'][k] & inb).float()
     pen['action_rate'] = action_rate_term(env, r)
     pen.update(torque_rate_terms(env))                                                       # (11-09)
     pen['elbow_height'] = RW.elbow_above_shoulder(env.xpos[:, env.x_elbow, 2], env.xpos[:, env.x_shoulder, 2], 0.)
@@ -361,6 +371,90 @@ def reward(env, r, k):
     extra = sum(float(Wt[n])*t for n, t in terms.items() if n in Wt)-sum(float(Wt[n])*t for n, t in pen.items() if n in Wt)
     info = {**{f't_{n}': t.detach() for n, t in terms.items()}, **{f'p_{n}': t.detach() for n, t in pen.items()}}
     return torch.nan_to_num(extra, 0., 0., 0.), info
+
+
+# ---------------------------------------------------------------- (11-12) pipette tip vs the tube
+# The task reference (tracker/build_demo_task.py tip_insert) carries the tip's own path in the TUBE frame: tip_in_tube_ref, pip_axis_in_tube_ref,
+# pip_tip_local (the tip in the pipette frame), gate_tip_align (approach .. extraction end), gate_tip_in_tube. Tracking each wrist / object in the
+# world frame does not put the tip in the 25.8 mm bore: in physics the two hands are ~10 mm apart from their references relative to each other and
+# the tube sits 3-18 mm off its in-hand template. The reward w.tip_align scores the tip / axis in the tube frame directly; extras.tip.obs gives
+# the (privileged) teacher the tip / axis in the tube frame and the error to the reference at the OFFSETS frames.
+def tip_init(env):
+    X = env.xcfg; env.x_tip = None
+    if not (X['tip'].get('obs') or float(X['w'].get('tip_align', 0.)) > 0): return
+    r = np.load(env.task/'reference.npz'); assert 'tip_in_tube_ref' in r.files, f'{env.task}: no tip_in_tube_ref (task built before 11-12)'
+    tt = lambda a, dt=torch.float32: torch.as_tensor(np.asarray(a), dtype=dt, device=env.device)
+    env.x_tip = {'ref': tt(r['tip_in_tube_ref']), 'ax': tt(r['pip_axis_in_tube_ref']), 'pt': tt(r['pip_tip_local']), 'gate': tt(r['gate_tip_align'], torch.bool),
+                 'inref': tt(r['gate_tip_in_tube'], torch.bool), 'cfg': X['tip']}
+
+
+def tip_state(env, pt=None):
+    """(N, 3) pipette tip and (N, 3) pipette axis, both in the tube frame"""
+    _, Op = env._poses('right'); _, Ou = env._poses('left'); pt = env.x_tip['pt'] if pt is None else pt
+    tip = Op[:, :3, :3]@pt+Op[:, :3, 3]
+    return ((tip-Ou[:, :3, 3])[:, None, :]@Ou[:, :3, :3])[:, 0], (Op[:, :3, 2][:, None, :]@Ou[:, :3, :3])[:, 0]
+
+
+def obs_extra(env, k, offsets):
+    """(11-12) teacher observation (extras.tip.obs): tip / axis in the tube frame, then per offset frame the reference tip minus the tip (scaled,
+    clipped) and the alignment gate; 6 + 4 x len(offsets) values"""
+    T = getattr(env, 'x_tip', None)
+    if T is None or not T['cfg'].get('obs'): return []
+    rel, ax = tip_state(env); s = float(T['cfg']['obs_scale_mm'])*1e-3; cl = float(T['cfg']['obs_clip']); last = env.nframes-1; out = [(rel/s).clamp(-cl, cl), ax]
+    for o in offsets:
+        j = (k+o*env.frame_step).clamp(max=last); out += [((T['ref'][j]-rel)/s).clamp(-cl, cl), T['gate'][j, None].float()]
+    return out
+
+
+# ---------------------------------------------------------------- (11-12) external pushes on the hands (user: "external perturbation to the hand
+# during the training"). extras 'perturb': per world and per body (default both wrists) a push starts with probability rate_hz x dt per control step
+# (none active, start_delay_s after the reset); force magnitude U(force_n) in a uniformly random direction, torque U(torque_nm) about a random
+# axis, duration U(dur_s), half-sine envelope; applied as d.xfrc_applied (world frame, at the body's COM), constant over the substeps of a control
+# step. 'scale' multiplies force and torque (training scripts ramp it: tracker.perturb_ramp_steps / distill perturb_ramp_iters). Evaluation
+# scripts drop extras.perturb unless asked (--perturb).
+PERTURB = {'rate_hz': .2, 'force_n': [2., 15.], 'torque_nm': [0., .5], 'dur_s': [.1, .4], 'bodies': ['right_wrist', 'left_wrist'], 'start_delay_s': .5, 'scale': 1.}
+
+
+def perturb_init(env):
+    pc = env.xcfg.get('perturb'); env.x_pert = None
+    if not pc: return
+    pc = merge(PERTURB, pc); dev = env.device; N = env.num_envs; ids = torch.as_tensor([env.mjm.body(b).id for b in pc['bodies']], device=dev); B = len(ids)
+    xf = env.wp.to_torch(env.d.xfrc_applied); assert tuple(xf.shape) == (N, env.mjm.nbody, 6), xf.shape
+    z = lambda *s: torch.zeros(*s, device=dev)
+    env.x_pert = {'cfg': pc, 'ids': ids, 'xfrc': xf, 'W': z(N, B, 6), 't': z(N, B), 'T': z(N, B), 'scale': float(pc['scale']), 'pushes': 0, 'steps': 0, 'active': 0.}
+
+
+def perturb_reset(env, ids):
+    P = getattr(env, 'x_pert', None)
+    if P is None or not len(ids): return
+    P['t'][ids] = 0.; P['T'][ids] = 0.; P['W'][ids] = 0.; P['xfrc'][ids[:, None], P['ids'][None, :]] = 0.
+
+
+def perturb_step(env):
+    P = getattr(env, 'x_pert', None)
+    if P is None: return
+    c = P['cfg']; g = env.gen; N, B = P['t'].shape; dt = env.substeps*env.dt; dev = env.device
+    idle = P['t'] >= P['T']
+    start = idle & (env.episode_length_buf[:, None].float()*dt >= float(c['start_delay_s'])) & (torch.rand(N, B, device=dev, generator=g) < float(c['rate_hz'])*dt)
+    n = int(start.sum())
+    if n:
+        u = lambda lo_hi: float(lo_hi[0])+(float(lo_hi[1])-float(lo_hi[0]))*torch.rand(n, device=dev, generator=g)
+        df = torch.randn(n, 3, device=dev, generator=g); df = df/df.norm(dim=-1, keepdim=True).clamp_min(1e-9)
+        dq = torch.randn(n, 3, device=dev, generator=g); dq = dq/dq.norm(dim=-1, keepdim=True).clamp_min(1e-9)
+        P['W'][start] = torch.cat([df*u(c['force_n'])[:, None], dq*u(c['torque_nm'])[:, None]], 1); P['T'][start] = u(c['dur_s']); P['t'][start] = 0.
+        P['pushes'] += n
+    act = P['t'] < P['T']; env_ = torch.where(act, torch.sin(math.pi*(P['t']/P['T'].clamp_min(1e-6)).clamp(0, 1)), torch.zeros_like(P['t']))
+    P['xfrc'][:, P['ids']] = P['W']*(env_*P['scale'])[..., None]
+    P['t'] = torch.where(act, P['t']+dt, P['t']); P['steps'] += 1; P['active'] += float(act.float().mean())
+
+
+def perturb_stats(env):
+    """mean fraction of (world, body) pairs being pushed, pushes started per world-second, since the last call"""
+    P = getattr(env, 'x_pert', None)
+    if P is None or not P['steps']: return {}
+    out = {'push_active_frac': round(P['active']/P['steps'], 4), 'pushes_per_world_s': round(P['pushes']/(P['steps']*env.num_envs*env.substeps*env.dt), 4), 'push_scale': P['scale']}
+    P['pushes'] = 0; P['steps'] = 0; P['active'] = 0.
+    return out
 
 
 # ---------------------------------------------------------------- holder offsets with object-relative re-anchoring (rack / stand moved per episode)
@@ -467,10 +561,25 @@ def holder_init(env):
         pairs = [tuple(x) for x in hp]
         g = r['gate_tube_in_rack'].astype(bool); idx = np.flatnonzero(g); gap = np.flatnonzero(np.diff(idx) > 1)
         k_mid = int((idx[gap[0]]+idx[gap[0]+1])//2) if len(gap) else nf//2
-        env.x_holes = {'pairs': pairs, 'pick': torch.as_tensor(np.array([cen[a]-cen['r0c3'] for a, b in pairs]), dtype=torch.float32, device=dev),
-                       'place': torch.as_tensor(np.array([cen[b]-cen['r1c3'] for a, b in pairs]), dtype=torch.float32, device=dev), 'k_mid': k_mid,
+        # (11-10) the reference's own pick / place holes: task.json 'ref_holes' (tracker/build_demo_task.py tasks: the same hole twice);
+        # tasks without it are the T1 demo's r0c3 -> r1c3
+        tjp = env.task/'task.json'; rh = (json.loads(tjp.read_text()).get('ref_holes') if tjp.exists() else None) or ['r0c3', 'r1c3']
+        env.x_holes = {'pairs': pairs, 'pick': torch.as_tensor(np.array([cen[a]-cen[rh[0]] for a, b in pairs]), dtype=torch.float32, device=dev),
+                       'place': torch.as_tensor(np.array([cen[b]-cen[rh[1]] for a, b in pairs]), dtype=torch.float32, device=dev), 'k_mid': k_mid, 'ref_holes': rh,
                        'idx': torch.zeros(env.num_envs, dtype=torch.long, device=dev)}
     env.x_hold = H; env.x_ik = _IK(m, dev)
+    # (11-11) extras.holder.meas_model: the robot's holder / object estimate = the head-camera estimator's error model instead of independent
+    # Gaussians: {"errors": "ego/errors.npz" (task-relative; perception/ego_holders.py: one JOINT row per characterised scene: stand dx dy dyaw,
+    # rack dx dy dyaw, tube dx dy dz), "scale": 1 (multiplies the row), "extra_xy_mm" / "extra_yaw_deg" / "extra_tube_mm": independent Gaussian
+    # added on top (randomisation margin), "pipette_xy_mm" / "pipette_yaw_deg": the pipette's slack in the stand (not observed)}. Per episode one
+    # row j for the stand, the rack and the tube together; the pipette is the stand estimate applied to it; the tube's spin is not observed (0).
+    mm = hc.get('meas_model'); env.x_ego = None
+    if mm:
+        ep = Path(mm['errors']); ep = ep if ep.is_absolute() else env.task/ep; z = np.load(ep)
+        assert list(z['cols']) == ['stand_dx', 'stand_dy', 'stand_dyaw', 'rack_dx', 'rack_dy', 'rack_dyaw', 'tube_dx', 'tube_dy', 'tube_dz'], z['cols']
+        env.x_ego = {'E': torch.as_tensor(z['errors'], dtype=torch.float32, device=dev)*float(mm.get('scale', 1.)), 'j': torch.zeros(env.num_envs, dtype=torch.long, device=dev),
+                     'xy': float(mm.get('extra_xy_mm', 0.))*1e-3, 'yaw': np.radians(float(mm.get('extra_yaw_deg', 0.))), 'tube': float(mm.get('extra_tube_mm', 0.))*1e-3,
+                     'pxy': float(mm.get('pipette_xy_mm', 0.))*1e-3, 'pyaw': np.radians(float(mm.get('pipette_yaw_deg', 0.)))}
     env.x_arm_side = {'L': torch.as_tensor([i for i, n in enumerate(env.action_names) if n.startswith('L_arm')], device=dev),
                       'R': torch.as_tensor([i for i, n in enumerate(env.action_names) if n.startswith('R_arm')], device=dev)}
     env.x_carrier_q = torch.as_tensor([int(m.jnt_qposadr[m.joint(j).id]) for j in ('pc_x', 'pc_y', 'pc_z', 'pc_rx', 'pc_ry', 'pc_rz')], device=dev)
@@ -528,7 +637,8 @@ def holder_step(env, k):
 def holder_reset(env, ids, frames):
     """Sample per-episode holder offsets, move the holder geoms, and make the start state consistent (arms by IK, held / seated objects rigidly)."""
     if not getattr(env, 'x_hold', None) or not len(ids): return
-    n = len(ids); dev = env.device; gpos, gquat = env.mf['geom_pos'], env.mf['geom_quat']
+    n = len(ids); dev = env.device; gpos, gquat = env.mf['geom_pos'], env.mf['geom_quat']; XE = getattr(env, 'x_ego', None)
+    if XE is not None: XE['j'][ids] = torch.randint(len(XE['E']), (n,), device=dev, generator=env.gen)
     for name, h in env.x_hold.items():
         h['d'][ids] = h['xy']*(2*torch.rand(n, 2, device=dev, generator=env.gen)-1); h['th'][ids] = h['yaw']*(2*torch.rand(n, device=dev, generator=env.gen)-1)
         if name == 'rack' and getattr(env, 'x_holes', None) is not None:
@@ -537,7 +647,11 @@ def holder_reset(env, ids, frames):
             if fp is not None: X['idx'][ids] = fp[ids]
         fx = getattr(env, 'x_hold_fixed', None)   # diagnostics only: per-world fixed offsets {name: (d (N, 2) m, th (N,) rad)}
         if fx and name in fx: h['d'][ids] = fx[name][0][ids]; h['th'][ids] = fx[name][1][ids]
-        h['dm'][ids] = h['d'][ids]+h['m_xy']*torch.randn(n, 2, device=dev, generator=env.gen); h['thm'][ids] = h['th'][ids]+h['m_yaw']*torch.randn(n, device=dev, generator=env.gen)
+        if XE is not None:   # (11-11) head-camera estimate: a row of the estimator's error model (+ the extra randomisation)
+            e = XE['E'][XE['j'][ids]][:, (0 if name == 'stand' else 3):][:, :3]
+            h['dm'][ids] = h['d'][ids]+e[:, :2]+XE['xy']*torch.randn(n, 2, device=dev, generator=env.gen); h['thm'][ids] = h['th'][ids]+e[:, 2]+XE['yaw']*torch.randn(n, device=dev, generator=env.gen)
+        else:
+            h['dm'][ids] = h['d'][ids]+h['m_xy']*torch.randn(n, 2, device=dev, generator=env.gen); h['thm'][ids] = h['th'][ids]+h['m_yaw']*torch.randn(n, device=dev, generator=env.gen)
         Hfull = _H(torch.ones(n, device=dev), h['d'][ids], h['th'][ids], h['c'])
         g = h['g']; p0 = env.g0['geom_pos'][g]; q0 = env.g0['geom_quat'][g]
         gpos[ids[:, None], g[None]] = (Hfull[:, None, :3, :3]@p0[None, :, :, None])[..., 0]+Hfull[:, None, :3, 3]
@@ -588,9 +702,11 @@ def student_init(env):
     env.x_meas = torch.zeros(env.num_envs, 14, device=dev); env.x_hd_seen = torch.zeros(env.num_envs, len(env.x_arm), device=dev)
     if getattr(env, 'actor_layout', None) is not None:
         o = env.actor_dim
-        for name, n in STUDENT_PARTS+[('holder_reanchor_arm_cmd_delta', len(env.x_arm))]:
+        extra = [(f'wrist_ref_rel_{s}[t+{c}] (pos 3, rot cols 6)', 9) for c in WRIST_REF_OFFSETS for s in ('right', 'left')] if sc.get('wrist_ref') else []
+        for name, n in STUDENT_PARTS+[('holder_reanchor_arm_cmd_delta', len(env.x_arm))]+extra:
             env.actor_layout.append({'name': name, 'start': o, 'size': n}); o += n
         env.actor_dim = o
+    depth_init(env)
 
 
 def _yaw_quat(q):   # wxyz -> yaw of the body z-rotation part (world frame)
@@ -599,22 +715,48 @@ def _yaw_quat(q):   # wxyz -> yaw of the body z-rotation part (world frame)
 
 def measure(env, ids, frames):
     if getattr(env, 'x_meas', None) is None or not len(ids): return
+    depth_reset(env, ids)
     sc = env.xcfg['student']; n = len(ids); dev = env.device; g = env.gen
     sp, sy = float(sc.get('meas_pos_mm', 5.))*1e-3, np.radians(float(sc.get('meas_yaw_deg', 2.)))
-    q = env.qpos[ids]; qr = env.qpos_ref[frames]; out = []
+    q = env.qpos[ids]; qr = env.qpos_ref[frames]; out = []; XE = getattr(env, 'x_ego', None) if getattr(env, 'x_hold', None) else None
     for s in ('right', 'left'):
         a = env.x_objq[s]; dp = q[:, a:a+3]-qr[:, a:a+3]; dy = _yaw_quat(q[:, a+3:a+7])-_yaw_quat(qr[:, a+3:a+7]); dy = torch.atan2(torch.sin(dy), torch.cos(dy))
-        out += [dp+sp*torch.randn(n, 3, device=dev, generator=g), (dy+sy*torch.randn(n, device=dev, generator=g))[:, None]]
+        if XE is None: out += [dp+sp*torch.randn(n, 3, device=dev, generator=g), (dy+sy*torch.randn(n, device=dev, generator=g))[:, None]]
+        elif s == 'right':   # (11-11) pipette = the stand estimate applied to it (+ its unobserved slack in the stand)
+            h = env.x_hold['stand']; one = torch.ones(n, device=dev)
+            Tm = _H(one, h['dm'][ids], h['thm'][ids], h['c'])@torch.linalg.inv(_H(one, h['d'][ids], h['th'][ids], h['c']))
+            pm = (Tm[:, :3, :3]@q[:, a:a+3, None])[..., 0]+Tm[:, :3, 3]; pm[:, :2] += XE['pxy']*torch.randn(n, 2, device=dev, generator=g)
+            out += [pm-qr[:, a:a+3], (dy+h['thm'][ids]-h['th'][ids]+XE['pyaw']*torch.randn(n, device=dev, generator=g))[:, None]]
+        else:                # (11-11) tube = the estimator's tube fit (row j) + extra; its spin is not observed
+            out += [dp+XE['E'][XE['j'][ids]][:, 6:9]+XE['tube']*torch.randn(n, 3, device=dev, generator=g), torch.zeros(n, 1, device=dev)]
     for nm in ('stand', 'rack'):
         if getattr(env, 'x_hold', None): h = env.x_hold[nm]; out += [h['dm'][ids], h['thm'][ids][:, None]]
         else: out += [sp*torch.randn(n, 2, device=dev, generator=g), sy*torch.randn(n, 1, device=dev, generator=g)]
     env.x_meas[ids] = torch.cat(out, 1)
 
 
+WRIST_REF_OFFSETS = (0, 2, 5, 12)   # = vega_res_env.OFFSETS (control steps)
+
+
 def student_parts(env):
     if getattr(env, 'x_meas', None) is None: return []
+    depth_update(env)   # (11-10) renders every cfg.every calls; the image lives in env.x_depth['obs'], not in the vector
     hd = env.x_hdelta[:, env.x_arm] if getattr(env, 'x_hold', None) else torch.zeros(env.num_envs, len(env.x_arm), device=env.device)
-    return [env.x_meas, hd]
+    out = [env.x_meas, hd]
+    if env.xcfg['student'].get('wrist_ref'):
+        # (11-10) end-effector reference for the student: the reference wrist pose re-anchored with the robot's OWN holder estimate
+        # (holder_T meas=True), relative to the wrist pose from forward kinematics of the MEASURED arm joints (encoder offset + noise:
+        # env.h_q[0]); position + first two rotation columns, like the teacher's wrist term (which uses the true wrist and holders)
+        k = env.frame.clamp(max=env.nframes-1); last = env.nframes-1; qm = env.h_q[0]; Wm = {}
+        for s, L in (('right', 'R'), ('left', 'L')):
+            T = env.x_ik.fk(L, qm[:, env.x_arm_side[L]]); Ti = torch.zeros_like(T); Rt = T[:, :3, :3].transpose(1, 2)
+            Ti[:, :3, :3] = Rt; Ti[:, :3, 3] = -(Rt@T[:, :3, 3, None])[..., 0]; Ti[:, 3, 3] = 1.; Wm[s] = Ti
+        for c in WRIST_REF_OFFSETS:
+            j = (k+c*env.frame_step).clamp(max=last)
+            for s in ('right', 'left'):
+                rel = Wm[s]@holder_T(env, 'stand' if s == 'right' else 'rack', j, meas=True)@env.W_ref[s][j]
+                out += [rel[:, :3, 3], rel[:, :3, :2].flatten(1)]
+    return out
 
 
 # ---------------------------------------------------------------------------------------------- event gate (11-06 round 3, default off)
@@ -670,3 +812,140 @@ def rot_angle_(A, B):
 
 def gate_reset(env, ids):
     if getattr(env, 'x_gate', None) is not None and len(ids): env.x_gate['held'][ids] = 0
+
+
+# ---------------------------------------------------------------------------------------------- (11-10) wrist depth cameras for the student
+# extras.student.depth = {...} (DEPTH_DEFAULT; true = defaults). One stereo-depth camera per hand on a bracket on the wrist body (perception/
+# wristcam_sim.py 'forearm' mount: 6 cm back, 4.8 cm off the palm, looking at the grasp; right-hand wrist frame, left mirrored), rendered
+# by MuJoCo Warp's batched ray-cast renderer at the policy resolution every `every` control steps (render geom groups 1 = robot + object
+# visuals, 3 = furniture; collision copies moved to group 4 at load), with the stereo noise model of wristcam_sim.NOISE interpolated per
+# episode between `noise_lo` (FFS-like) and `noise_hi` (D405 on-chip-like); disparity noise rescaled from 256 px to the render width
+# (correlated part x r, white part x r^2 for the r x r averaging, r = width / 256). Per-episode depth scale error and camera mount error
+# (applied to the rendered camera pose). The student sees the image of the PREVIOUS render (latency `every` steps); nothing for the first
+# render interval of an episode. Stored as int16 mm (0 = invalid) in env.x_depth['obs'] (N, 2 cameras [right, left], H, W).
+DEPTH_DEFAULT = dict(res=[64, 48], every=2, f256=156., baseline=.018, zmin=.044, mount=[[-.005, .065, .06], [-.01, .045, -.08]],
+                     noise_lo=dict(white=.1, corr=.15, edge_fat=.5, edge_drop=.5, holes=.10, obj_holes=.10, speckle=.01, scale=.005, extr=[1., .5]),
+                     noise_hi=dict(white=.25, corr=.4, edge_fat=.5, edge_drop=.6, holes=.35, obj_holes=.25, speckle=.03, scale=.01, extr=[2., 1.]),
+                     aux_inhand=1.)
+DEPTH_CAMS = ('wristcam_right', 'wristcam_left')
+
+
+def depth_cfg(extras):
+    dc = ((extras or {}).get('student') or {}).get('depth')
+    if not dc: return None
+    return merge(DEPTH_DEFAULT, dc if isinstance(dc, dict) else {})
+
+
+def load_model(path, extras):
+    """The task scene; with the student's depth cameras added (no change to the physics) when extras.student.depth is set."""
+    import mujoco, math
+    dc = depth_cfg(extras)
+    if dc is None: return mujoco.MjModel.from_xml_path(str(path))
+    sp = mujoco.MjSpec.from_file(str(path)); (pos, tgt) = dc['mount']; W, H = dc['res']; f = dc['f256']*W/256.
+    for side, s in (('right', 1.), ('left', -1.)):
+        p = np.array(pos)*[1, s, 1]; fw = np.array(tgt)*[1, s, 1]-p; fw /= np.linalg.norm(fw)
+        zc = -fw; xc = np.cross([0, s, 0], zc); xc /= np.linalg.norm(xc); yc = np.cross(zc, xc); q = np.zeros(4)
+        mujoco.mju_mat2Quat(q, np.stack([xc, yc, zc], 1).ravel())
+        sp.body(f'{side}_wrist').add_camera(name=f'wristcam_{side}', pos=p, quat=q, fovy=math.degrees(2*math.atan(H/2/f)))
+    m = sp.compile()
+    for i in range(m.ngeom):   # group 3 on moving bodies = collision proxies overlapping the visuals: out of the rendered groups
+        if m.geom_group[i] == 3 and int(m.geom_bodyid[i]) != 0: m.geom_group[i] = 4
+    return m
+
+
+def _gauss_kernel(sigma, dev):
+    r = max(1, int(math.ceil(2.5*sigma))); x = torch.arange(-r, r+1, dtype=torch.float32, device=dev); k = torch.exp(-.5*(x/sigma)**2)
+    k2 = k[:, None]*k[None]; k2 = k2/k2.sum(); return k2[None, None], float(torch.sqrt((k2**2).sum()))
+
+
+def depth_init(env):
+    dc = depth_cfg(env.xcfg); env.x_depth = None
+    if dc is None: return
+    import warp as wp, mujoco_warp as mjw
+    m = env.mjm; W, H = dc['res']; N = env.num_envs; dev = env.device
+    with wp.ScopedDevice(env.wpdev):
+        rc = mjw.create_render_context(m, nworld=N, cam_res=(W, H), render_rgb=False, render_depth=True, render_seg=True, enabled_geom_groups=[1, 3],
+                                       cam_active=list(DEPTH_CAMS), use_textures=False, use_shadows=False)
+        zb = [wp.zeros((N, H, W), dtype=float) for _ in DEPTH_CAMS]; sb = [wp.zeros((N, H, W), dtype=wp.vec2i) for _ in DEPTH_CAMS]
+    objb = {m.body(n).id for n in ('right_object', 'left_object', 'pipette_plunger')}
+    objg = torch.tensor([int(m.geom_bodyid[i]) in objb for i in range(m.ngeom)]+[False], device=dev)   # last = background (-1)
+    r = W/256.; K = {k: _gauss_kernel(s*r, dev) for k, s in (('corr', 3.), ('holes', 4.), ('obj', 3.))}
+    lo, hi = dc['noise_lo'], dc['noise_hi']
+    env.x_depth = dict(cfg=dc, rc=rc, cams=[m.camera(n).id for n in DEPTH_CAMS], zb=zb, sb=sb, objg=objg, W=W, H=H, f=dc['f256']*r, r=r, K=K, tick=0,
+                       lo={k: torch.tensor(v, dtype=torch.float32, device=dev) for k, v in lo.items()},
+                       hi={k: torch.tensor(v, dtype=torch.float32, device=dev) for k, v in hi.items()},
+                       obs=torch.zeros(N, 2, H, W, dtype=torch.int16, device=dev), pend=torch.zeros(N, 2, H, W, dtype=torch.int16, device=dev),
+                       alpha=torch.zeros(N, device=dev), scale=torch.zeros(N, device=dev),
+                       Re=torch.eye(3, device=dev).repeat(N, 2, 1, 1), te=torch.zeros(N, 2, 3, device=dev))
+
+
+def _p(X, k):   # per-world noise parameter, interpolated between the two levels by the episode's alpha
+    return X['lo'][k]+X['alpha'][:, None]*(X['hi'][k]-X['lo'][k]) if X['lo'][k].dim() else X['lo'][k]+X['alpha']*(X['hi'][k]-X['lo'][k])
+
+
+def depth_reset(env, ids):
+    X = getattr(env, 'x_depth', None)
+    if X is None or not len(ids): return
+    n = len(ids); dev = env.device; g = env.gen
+    X['alpha'][ids] = torch.rand(n, device=dev, generator=g)
+    X['scale'][ids] = _p(X, 'scale')[ids]*torch.randn(n, device=dev, generator=g)
+    ex = _p(X, 'extr')[ids]                                                     # (n, 2): mm, deg
+    for j in range(2):
+        u = torch.randn(n, 3, device=dev, generator=g); u = u/u.norm(dim=1, keepdim=True); X['te'][ids, j] = u*ex[:, :1]*1e-3
+        a = torch.randn(n, 3, device=dev, generator=g); a = a/a.norm(dim=1, keepdim=True); th = torch.deg2rad(ex[:, 1])
+        Kx = torch.zeros(n, 3, 3, device=dev); Kx[:, 0, 1], Kx[:, 0, 2], Kx[:, 1, 2] = -a[:, 2], a[:, 1], -a[:, 0]; Kx = Kx-Kx.transpose(1, 2)
+        X['Re'][ids, j] = torch.eye(3, device=dev)+torch.sin(th)[:, None, None]*Kx+(1-torch.cos(th))[:, None, None]*(Kx@Kx)
+    X['obs'][ids] = 0; X['pend'][ids] = 0
+
+
+def _blur(x, KS):
+    k, nrm = KS; return torch.nn.functional.conv2d(x, k, padding=k.shape[-1]//2)/nrm
+
+
+def depth_noise(env, z, obj):
+    """Simulated stereo depth (m, 0 = invalid) from true depth z (N, 2, H, W) and the held-object mask."""
+    X = env.x_depth; dc = X['cfg']; g = env.gen; dev = env.device; N, C, H, W = z.shape; r = X['r']; fB = X['f']*dc['baseline']
+    P = lambda k: _p(X, k).view(N, 1, 1, 1)
+    bg = z <= 0; zt = torch.where(bg, torch.full_like(z, 2.), z).clamp(min=1e-3)
+    rn = lambda: torch.randn(N*C, 1, H, W, device=dev, generator=g)
+    n = P('white')*r*r*rn().view(N, C, H, W)+P('corr')*r*_blur(rn(), X['K']['corr']).view(N, C, H, W)
+    zn = fB/(fB/zt+n).clamp(min=1e-3)*(1+X['scale'].view(N, 1, 1, 1))
+    jump = torch.zeros_like(z, dtype=torch.bool); dv = (zt[:, :, 1:]-zt[:, :, :-1]).abs() > .005; dh = (zt[..., 1:]-zt[..., :-1]).abs() > .005
+    jump[:, :, 1:] |= dv; jump[:, :, :-1] |= dv; jump[..., 1:] |= dh; jump[..., :-1] |= dh
+    u = torch.rand(z.shape, device=dev, generator=g); fat = jump & (u < P('edge_fat'))
+    zfg = -torch.nn.functional.max_pool2d(-zt.view(N*C, 1, H, W), 3, 1, 1).view(N, C, H, W)
+    zn = torch.where(fat, zfg*(1+X['scale'].view(N, 1, 1, 1)), zn)
+    bad = jump & ~fat & (torch.rand(z.shape, device=dev, generator=g) < P('edge_drop'))
+    bad |= _blur(rn(), X['K']['holes']).view(N, C, H, W) > torch.special.ndtri(1-P('holes').clamp(1e-4, .9999))
+    bad |= obj & (_blur(rn(), X['K']['obj']).view(N, C, H, W) > torch.special.ndtri(1-P('obj_holes').clamp(1e-4, .9999)))
+    sp = torch.rand(z.shape, device=dev, generator=g) < P('speckle'); zn = zn+sp*(torch.rand(z.shape, device=dev, generator=g)*.04-.02)
+    bad |= bg | (zn < dc['zmin']) | (zn > 2.)
+    return torch.where(bad, torch.zeros_like(zn), zn)
+
+
+def depth_update(env):
+    X = getattr(env, 'x_depth', None)
+    if X is None: return
+    X['tick'] += 1
+    if X['tick'] % int(X['cfg']['every']): return
+    import warp as wp, mujoco_warp as mjw
+    with wp.ScopedDevice(env.wpdev):
+        mjw.camlight(env.m, env.d)
+        cx, cm = wp.to_torch(env.d.cam_xpos), wp.to_torch(env.d.cam_xmat)        # camera mount error of the episode (camera frame)
+        for j, c in enumerate(X['cams']):
+            R = cm[:, c].clone(); cx[:, c] += (R@X['te'][:, j, :, None])[..., 0]; cm[:, c] = R@X['Re'][:, j]
+        mjw.refit_bvh(env.m, env.d, X['rc']); mjw.render(env.m, env.d, X['rc'])
+        for j in range(2): mjw.get_depth(X['rc'], j, 1., X['zb'][j]); mjw.get_segmentation(X['rc'], j, X['sb'][j])
+    z = torch.stack([wp.to_torch(b) for b in X['zb']], 1)
+    seg = torch.stack([wp.to_torch(b)[..., 0] for b in X['sb']], 1).long(); seg = torch.where(seg < 0, torch.full_like(seg, len(X['objg'])-1), seg)
+    zn = depth_noise(env, z, X['objg'][seg])
+    X['obs'] = X['pend']; X['pend'] = (zn*1000.).round().clamp(0, 32767).to(torch.int16)
+
+
+def inhand_targets(env):
+    """(N, 36) privileged auxiliary target: each held object's six axis points (+-5 cm) in its wrist frame (the teacher's object term)."""
+    out = []
+    for s in ('right', 'left'):
+        W, O = env._poses(s); R = W[:, :3, :3].transpose(1, 2); lo = R@O[:, :3, :3]; lp = (R@(O[:, :3, 3]-W[:, :3, 3])[..., None])[..., 0]
+        out.append((env.axis@lo.transpose(1, 2)+lp[:, None]).flatten(1))
+    return torch.cat(out, 1)

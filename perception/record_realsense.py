@@ -1,7 +1,7 @@
 """Record a RealSense camera (D435i, D405, ...): colour video, and with --depth the raw metric depth of every frame, with a live preview.
 
   .venv-rl-head/bin/python perception/record_realsense.py [--res 640x480] [--fps 30] [--depth [--align]] [--bag] [--seconds N] [--serial S]
-  .venv-rl-head/bin/python perception/record_realsense.py --rosbag [--align] [--zstd] ...       colour + depth into one ROS 2 bag only
+  .venv-rl-head/bin/python perception/record_realsense.py --rosbag [--align] [--zstd] [--ir] ...   colour + depth into one ROS 2 bag only
 
 Recording starts at launch; q / Esc (or closing the window, or --seconds) stops it and finalises the files <out>/<time>_<camera>_*:
   _color.mp4          colour video (mp4v, real time: camera frames the loop missed are filled with the previous frame)
@@ -22,7 +22,11 @@ opens with Humble's ros2 bag info / play, rosbag2_py, or the rosbags Python pack
   /camera/depth/image_rect_raw and /camera/depth/camera_info, depth camera; with --align instead
   /camera/aligned_depth_to_color/image_raw and .../camera_info, same pixel grid as the colour image
       depth 16UC1 in mm, 0 = no depth (REP 118); on a camera whose depth unit is not 1 mm (D405: 0.1 mm) 32FC1 in m, NaN = no depth
-  /tf_static (without --align): camera_color_optical_frame -> camera_depth_optical_frame, the depth -> colour extrinsics
+  with --ir: /camera/infra1/image_rect_raw, /camera/infra2/image_rect_raw (mono8: the rectified left / right IR pair the depth is
+      computed from, emitter dots included) + camera_info (infra2's P[3] = -fx * baseline): the input of perception/ffs_bag.py, which
+      adds Fast-FoundationStereo depth to the bag offline
+  /tf_static (without --align, or with --ir): camera_color_optical_frame -> camera_depth_optical_frame (the depth -> colour
+      extrinsics) -> camera_infra1/2_optical_frame
   Every received frame once, stamped with the camera's frame time on the host clock; no fill-in for missed frames. Camera serial,
   firmware and depth scale are in metadata.yaml (custom_data). Size at 640x480@30 (D435i, 11-09): ~2.6 GB per minute; --zstd
   compresses each message, lossless, to ~1.0 GB per minute (Humble's ros2 bag play decompresses it). Needs the rosbags package.
@@ -83,9 +87,12 @@ def quat(R):
 
 
 class RosbagWriter:
-    """ROS 2 bag (rosbag2 v8, sqlite3) of colour + depth images with their camera_info, written on a background thread.
-    Items: ('color' | 'depth', stamp_ns, image) with the bgr8 colour or the raw z16 depth image."""
-    def __init__(self, path, cintr, dintr, aligned, scale, extr, zstd, info):
+    """ROS 2 bag (rosbag2 v8, sqlite3) of camera images with their camera_info, written on a background thread.
+    streams: kind -> (image topic, camera_info topic, frame_id, rs intrinsics, encoding, P[3]: -fx * baseline for the right camera of
+             a stereo pair, else 0). A 32FC1 stream gets the raw z16 image and stores z16 * depth_scale in m (NaN = no depth).
+    tfs:     [(parent frame, child frame, rs extrinsics child -> parent)], written once as /tf_static at the first stamp.
+    Items:   (kind, stamp_ns, image)."""
+    def __init__(self, path, streams, tfs, scale, zstd, info):
         from rosbags.interfaces import Qos, QosDurability, QosHistory, QosLiveliness, QosReliability, QosTime
         from rosbags.rosbag2 import CompressionFormat, CompressionMode, Writer
         from rosbags.typesys import Stores, get_typestore
@@ -93,23 +100,18 @@ class RosbagWriter:
         self.w = Writer(path, version=8)                                  # metadata v8: read by Humble's ros2 bag (checked 11-09)
         if zstd: self.w.set_compression(CompressionMode.MESSAGE, CompressionFormat.ZSTD)
         for k, v in info.items(): self.w.set_custom_data(k, str(v))
-        dtop = '/camera/aligned_depth_to_color' if aligned else '/camera/depth'
-        self.cams = {'color': ('/camera/color/image_raw', '/camera/color/camera_info', 'camera_color_optical_frame', cintr),
-                     'depth': (dtop+('/image_raw' if aligned else '/image_rect_raw'), dtop+'/camera_info',
-                               'camera_color_optical_frame' if aligned else 'camera_depth_optical_frame', dintr)}
-        self.mm = abs(scale-1e-3) < 1e-9; self.scale = np.float32(scale)
-        self.tf = None if aligned else extr
+        self.streams, self.tfs, self.scale = streams, tfs, np.float32(scale)
         inf = QosTime(2147483647, 4294967295)                             # /tf_static latched like a tf_static publisher, so ros2 bag play serves late subscribers
         self.latched = Qos(QosHistory.KEEP_LAST, 1, QosReliability.RELIABLE, QosDurability.TRANSIENT_LOCAL, inf, inf, QosLiveliness.AUTOMATIC, inf, False)
-        self.n = {'color': 0, 'depth': 0}; self.last_commit = 0
+        self.n = {k: 0 for k in streams}; self.last_commit = 0
         self.worker = Worker(self.write, self.w.close, self.open)         # sqlite objects only work on the thread that made them
 
     def open(self):
         self.w.open(); self.conn = {}
-        for kind, (timg, tinfo, _, _) in self.cams.items():
+        for kind, (timg, tinfo, *_) in self.streams.items():
             self.conn[kind] = self.w.add_connection(timg, 'sensor_msgs/msg/Image', typestore=self.ts)
             self.conn[kind+'_info'] = self.w.add_connection(tinfo, 'sensor_msgs/msg/CameraInfo', typestore=self.ts)
-        if self.tf is not None:
+        if self.tfs:
             self.conn['tf'] = self.w.add_connection('/tf_static', 'tf2_msgs/msg/TFMessage', typestore=self.ts, offered_qos_profiles=[self.latched])
 
     def header(self, t, frame):
@@ -121,24 +123,24 @@ class RosbagWriter:
 
     def write(self, item):
         kind, t, img = item; T = self.T
-        if self.tf is not None:                                           # p_colour = R p_depth + t: the depth frame's pose in the colour frame
-            R = np.array(self.tf.rotation, np.float64).reshape(3, 3).T; tr = self.tf.translation; qx, qy, qz, qw = quat(R)
-            tf = T['geometry_msgs/msg/TransformStamped'](
-                header=self.header(t, 'camera_color_optical_frame'), child_frame_id='camera_depth_optical_frame',
-                transform=T['geometry_msgs/msg/Transform'](translation=T['geometry_msgs/msg/Vector3'](x=tr[0], y=tr[1], z=tr[2]),
-                                                           rotation=T['geometry_msgs/msg/Quaternion'](x=qx, y=qy, z=qz, w=qw)))
-            self.put('tf', t, T['tf2_msgs/msg/TFMessage'](transforms=[tf])); self.tf = None
-        _, _, frame, i = self.cams[kind]; hdr = self.header(t, frame)
-        if kind == 'color': enc = 'bgr8'
-        elif self.mm: enc = '16UC1'
-        else: img, enc = np.where(img > 0, img*self.scale, np.float32(np.nan)).astype(np.float32), '32FC1'
+        if self.tfs:                                                      # p_parent = R p_child + t: the child frame's pose in the parent
+            tfm = []
+            for parent, child, e in self.tfs:
+                R = np.array(e.rotation, np.float64).reshape(3, 3).T; tr = e.translation; qx, qy, qz, qw = quat(R)
+                tfm.append(T['geometry_msgs/msg/TransformStamped'](
+                    header=self.header(t, parent), child_frame_id=child,
+                    transform=T['geometry_msgs/msg/Transform'](translation=T['geometry_msgs/msg/Vector3'](x=tr[0], y=tr[1], z=tr[2]),
+                                                               rotation=T['geometry_msgs/msg/Quaternion'](x=qx, y=qy, z=qz, w=qw))))
+            self.put('tf', t, T['tf2_msgs/msg/TFMessage'](transforms=tfm)); self.tfs = None
+        _, _, frame, i, enc, tx = self.streams[kind]; hdr = self.header(t, frame)
+        if enc == '32FC1': img = np.where(img > 0, img*self.scale, np.float32(np.nan)).astype(np.float32)
         img = np.ascontiguousarray(img)
         self.put(kind, t, T['sensor_msgs/msg/Image'](header=hdr, height=img.shape[0], width=img.shape[1], encoding=enc, is_bigendian=0,
                                                        step=img.strides[0], data=img.reshape(-1).view(np.uint8)))
         self.put(kind+'_info', t, T['sensor_msgs/msg/CameraInfo'](
             header=hdr, height=i.height, width=i.width, distortion_model='plumb_bob', d=np.array(i.coeffs, np.float64),
             k=np.array([i.fx, 0, i.ppx, 0, i.fy, i.ppy, 0, 0, 1.]), r=np.eye(3).reshape(-1),
-            p=np.array([i.fx, 0, i.ppx, 0, 0, i.fy, i.ppy, 0, 0, 0, 1., 0]), binning_x=0, binning_y=0,
+            p=np.array([i.fx, 0, i.ppx, tx, 0, i.fy, i.ppy, 0, 0, 0, 1., 0]), binning_x=0, binning_y=0,
             roi=T['sensor_msgs/msg/RegionOfInterest'](x_offset=0, y_offset=0, height=0, width=0, do_rectify=False)))
         self.n[kind] += 1
         if t-self.last_commit > 2e9 and hasattr(getattr(self.w, 'storage', None), 'conn'):   # commit every 2 s: a crash keeps what was
@@ -161,7 +163,9 @@ def main():
     ap.add_argument('--align', action='store_true', help='reproject the depth into the colour camera (pixel-aligned with the video)')
     ap.add_argument('--rosbag', action='store_true', help='record only colour + depth, into one ROS 2 bag (no mp4 / PNG)')
     ap.add_argument('--zstd', action='store_true', help='zstd-compress the --rosbag messages')
-    ap.add_argument('--depth-max', type=float, default=2., help='far end of the depth colours in the preview / _depth_vis.mp4, m')
+    ap.add_argument('--ir', action='store_true', help='also put the left / right IR pair in the --rosbag (input for ffs_bag.py)')
+    ap.add_argument('--depth-max', type=float, default=None, help='far end of the depth colours in the preview / _depth_vis.mp4, m '
+                    '(default from the working ranges: D405 0.2, others 1.0)')
     ap.add_argument('--bag', action='store_true', help="also record the raw streams to librealsense's .bag (ROS 1 format)")
     ap.add_argument('--seconds', type=float, default=0, help='stop after N s (0 = until q)')
     ap.add_argument('--serial', default=None); ap.add_argument('--no-preview', action='store_true')
@@ -169,7 +173,7 @@ def main():
     a = ap.parse_args(); W, H = map(int, a.res.lower().split('x'))
     if a.rosbag: a.depth = True
     if a.align and not a.depth: raise SystemExit('--align needs --depth (or --rosbag)')
-    if a.zstd and not a.rosbag: raise SystemExit('--zstd is for --rosbag')
+    if (a.zstd or a.ir) and not a.rosbag: raise SystemExit('--zstd and --ir are for --rosbag')
 
     devs = list(rs.context().query_devices())
     if not devs: raise SystemExit('no RealSense camera found (check the USB-C plug and use a USB 3 port)')
@@ -177,10 +181,12 @@ def main():
     dev = next((d for d in devs if a.serial in (None, d.get_info(rs.camera_info.serial_number))), None)
     if dev is None: raise SystemExit(f'no camera with serial {a.serial}')
     name = dev.get_info(rs.camera_info.name).replace('Intel RealSense ', '').replace(' ', ''); serial = dev.get_info(rs.camera_info.serial_number)
+    if a.depth_max is None: a.depth_max = .2 if 'D405' in name else 1.   # working ranges (11-10): D405 on the wrist 7-15 cm, D435i 40-80 cm
     if dev.get_info(rs.camera_info.usb_type_descriptor).startswith('2'): print('warning: connected at USB 2 -- high resolutions / rates may fail; use a USB 3 port / cable')
 
     cfg = rs.config(); cfg.enable_device(serial); cfg.enable_stream(rs.stream.color, W, H, rs.format.bgr8, a.fps)
     if a.depth: cfg.enable_stream(rs.stream.depth, W, H, rs.format.z16, a.fps)
+    for i in (1, 2) if a.ir else (): cfg.enable_stream(rs.stream.infrared, i, W, H, rs.format.y8, a.fps)   # same sensor as depth: same size / rate
     a.out.mkdir(parents=True, exist_ok=True); stem = a.out/f'{time.strftime("%Y%m%d_%H%M%S")}_{name}'
     if a.bag: cfg.enable_record_to_file(f'{stem}.bag')
     pipe = rs.pipeline(); prof = pipe.start(cfg)
@@ -202,8 +208,22 @@ def main():
         dv = cv2.applyColorMap(255-(np.clip(z16*(scale/a.depth_max), 0, 1)*255).astype(np.uint8), cv2.COLORMAP_TURBO); dv[z16 == 0] = 0; return dv
 
     if a.rosbag:
-        rb = RosbagWriter(stem, cprof.get_intrinsics(), cprof.get_intrinsics() if a.align else dprof.get_intrinsics(), a.align, scale, e, a.zstd,
-                          {k: meta[k] for k in ('camera', 'serial', 'firmware', 'usb', 'depth_scale', 'depth_aligned_to_color')})
+        dtop = '/camera/aligned_depth_to_color' if a.align else '/camera/depth'
+        streams = {'color': ('/camera/color/image_raw', '/camera/color/camera_info', 'camera_color_optical_frame', cprof.get_intrinsics(), 'bgr8', 0.),
+                   'depth': (dtop+('/image_raw' if a.align else '/image_rect_raw'), dtop+'/camera_info',
+                             'camera_color_optical_frame' if a.align else 'camera_depth_optical_frame',
+                             cprof.get_intrinsics() if a.align else dprof.get_intrinsics(), '16UC1' if abs(scale-1e-3) < 1e-9 else '32FC1', 0.)}
+        tfs = [] if a.align and not a.ir else [('camera_color_optical_frame', 'camera_depth_optical_frame', e)]
+        info = {k: meta[k] for k in ('camera', 'serial', 'firmware', 'usb', 'depth_scale', 'depth_aligned_to_color')}
+        if a.ir:
+            ip = [prof.get_stream(rs.stream.infrared, i).as_video_stream_profile() for i in (1, 2)]
+            info['ir_baseline_m'] = B = abs(ip[0].get_extrinsics_to(ip[1]).translation[0])
+            for i, p_ in zip((1, 2), ip):
+                ii = p_.get_intrinsics()
+                streams[f'ir{i}'] = (f'/camera/infra{i}/image_rect_raw', f'/camera/infra{i}/camera_info', f'camera_infra{i}_optical_frame', ii, 'mono8',
+                                     0. if i == 1 else -ii.fx*B)
+                tfs.append(('camera_depth_optical_frame', f'camera_infra{i}_optical_frame', p_.get_extrinsics_to(dprof)))
+        rb = RosbagWriter(stem, streams, tfs, scale, a.zstd, info)
         workers = [rb.worker]
     else:
         (Path(f'{stem}_meta.json')).write_text(json.dumps(meta, indent=1))
@@ -214,16 +234,17 @@ def main():
                         Worker(lambda it: cv2.imwrite(str(ddir/f'{it[0]:06d}.png'), it[1], [cv2.IMWRITE_PNG_COMPRESSION, 1]))]
             fcsv = open(f'{stem}_frames.csv', 'w', newline=''); cw = csv.writer(fcsv)
             cw.writerow(['video_frame', 'depth_png', 'color_frame_number', 'color_timestamp_ms', 'depth_frame_number', 'depth_timestamp_ms'])
-    what = (f'ROS 2 bag{" (zstd)" if a.zstd else ""}: colour + depth{" aligned to colour" if a.align else ""}' if a.rosbag else
+    what = (f'ROS 2 bag{" (zstd)" if a.zstd else ""}: colour + depth{" aligned to colour" if a.align else ""}{" + IR pair" if a.ir else ""}' if a.rosbag else
             f'{"colour + raw depth" if a.depth else "colour"}{" (aligned to colour)" if a.align else ""}')
     print(f'recording {name} {serial}: {W}x{H}@{a.fps} {what}{" + bag" if a.bag else ""} -> {stem}{"/" if a.rosbag else "_*"}  (q to stop)', flush=True)
     win = f'{name} recording (q to stop)'; PW = min(W, 960)
     if not a.no_preview: cv2.namedWindow(win, cv2.WINDOW_NORMAL)
-    n, k, t0, last_no, dropped, last_bag = 0, 0, None, None, 0, [None, None]
+    n, k, t0, last_no, dropped, last_bag = 0, 0, None, None, 0, {}
     warm, prev, t_start = 0, None, time.time()
     try:
         while True:
             fs = pipe.wait_for_frames(5000)
+            irs = [fs.get_infrared_frame(i) for i in (1, 2)] if a.ir else []  # taken before align, which is only sure to pass depth + colour on
             if align is not None: fs = align.process(fs)
             cf = fs.get_color_frame(); fno = cf.get_frame_number()
             if warm < 15:   # start-up: the D435i gives one frame, then nothing for ~1 s on depth (and colour with --align); record from
@@ -234,13 +255,13 @@ def main():
             if t0 is None: t0 = time.time()                                   # time from the first recorded frame (not the camera start-up)
             col = np.asanyarray(cf.get_data()).copy()
             gap = 0 if last_no is None else int(min(max(fno-last_no-1, 0), a.fps)); last_no = fno; dropped += gap
-            if a.rosbag:                                                      # the syncer sometimes repeats a frame in the next set: bag each frame once
-                if fno != last_bag[0]: rb.worker.q.put(('color', stamp_ns(cf), col)); last_bag[0] = fno
-            else: n += gap; workers[0].q.put((col, gap))
+            if not a.rosbag: n += gap; workers[0].q.put((col, gap))
             if a.depth:
                 df = fs.get_depth_frame(); z16 = np.asanyarray(df.get_data()).copy()
-                if a.rosbag:
-                    if df.get_frame_number() != last_bag[1]: rb.worker.q.put(('depth', stamp_ns(df), z16)); last_bag[1] = df.get_frame_number()
+                if a.rosbag:                                                  # the syncer sometimes repeats a frame in the next set: bag each frame once
+                    for kind, f, img in [('color', cf, col), ('depth', df, z16)] + [(f'ir{i+1}', f, None) for i, f in enumerate(irs)]:
+                        if f.get_frame_number() != last_bag.get(kind):
+                            rb.worker.q.put((kind, stamp_ns(f), np.asanyarray(f.get_data()).copy() if img is None else img)); last_bag[kind] = f.get_frame_number()
                 else:
                     workers[1].q.put((z16, gap)); workers[2].q.put((k, z16))
                     cw.writerow([n, f'{k:06d}.png', fno, f'{cf.get_timestamp():.3f}', df.get_frame_number(), f'{df.get_timestamp():.3f}'])
@@ -266,7 +287,7 @@ def main():
         if a.depth and not a.rosbag: fcsv.close()
         if a.rosbag:
             print(f'stopped: {n} frames for {el:.1f} s ({n/max(el, 1e-6):.1f} fps); {dropped} camera frames missed (not in the bag); '
-                  f'bag has {rb.n["color"]} colour + {rb.n["depth"]} depth images')
+                  f'bag has {", ".join(f"{v} {k}" for k, v in rb.n.items())} images')
         else:
             print(f'stopped: {n} video frames for {el:.1f} s ({n/max(el, 1e-6):.1f} fps); {dropped} ({dropped/max(n, 1):.0%}) repeat the previous '
                   f'frame because the camera frame was missed' + (f'; {k} depth frames saved' if a.depth else ''))

@@ -19,10 +19,10 @@ import gpu_train as GT
 
 p = argparse.ArgumentParser(); p.add_argument('config', type=Path); p.add_argument('--ckpt', type=Path); p.add_argument('--from-start', type=int, default=64)
 p.add_argument('--out', type=Path); p.add_argument('--metrics-config', type=Path, default=HERE/'configs/rr_T1k_tc_s5.json'); a0 = p.parse_args()
-C = json.loads(a0.config.read_text()); rel = lambda x: (x if Path(x).is_absolute() else (a0.config.parent/x)).resolve()
+C = json.loads(a0.config.read_text()); rel = lambda x: (Path(x) if Path(x).is_absolute() else (a0.config.parent/x)).resolve()
 task = rel(C['task']); dr = C.get('dr') if isinstance(C.get('dr'), dict) or C.get('dr') is None else json.loads(rel(C['dr']).read_text())
 MX = json.loads(a0.metrics_config.read_text())['extras']
-ex_cfg = json.loads(json.dumps(C.get('extras', {})))
+ex_cfg = json.loads(json.dumps(C.get('extras', {}))); ex_cfg.pop('perturb', None)   # (11-12) no hand pushes in evals
 for k in ('keep_hysteresis', 'drift_mm', 'slip_mm', 'temporal_off_gates', 'margin_fmax', 'margin_mu', 'margin_rho', 'margin_iters', 'margin_gate'):
     if k in MX: ex_cfg[k] = MX[k]
 ex_cfg.update({'log': True, 'log_margin': True, 'margin_every': 1})        # metrics only: reward weights untouched (they do not change the rollout)

@@ -1,0 +1,132 @@
+{
+ "n": 400,
+ "hole_id_correct": 400,
+ "used_rows": 400,
+ "errors": {
+  "stand_dx mm": {
+   "mean": 1.46,
+   "std": 2.93,
+   "p95_abs": 6.36,
+   "max_abs": 11.55
+  },
+  "stand_dy mm": {
+   "mean": -0.39,
+   "std": 3.12,
+   "p95_abs": 5.88,
+   "max_abs": 10.51
+  },
+  "stand_dyaw deg": {
+   "mean": 0.79,
+   "std": 1.87,
+   "p95_abs": 3.79,
+   "max_abs": 8.04
+  },
+  "rack_dx mm": {
+   "mean": 1.41,
+   "std": 2.63,
+   "p95_abs": 5.78,
+   "max_abs": 9.22
+  },
+  "rack_dy mm": {
+   "mean": 0.81,
+   "std": 3.12,
+   "p95_abs": 6.51,
+   "max_abs": 8.39
+  },
+  "rack_dyaw deg": {
+   "mean": 0.01,
+   "std": 0.45,
+   "p95_abs": 0.91,
+   "max_abs": 1.49
+  },
+  "tube_dx mm": {
+   "mean": 0.0,
+   "std": 3.09,
+   "p95_abs": 6.28,
+   "max_abs": 10.05
+  },
+  "tube_dy mm": {
+   "mean": 0.43,
+   "std": 3.19,
+   "p95_abs": 6.45,
+   "max_abs": 8.28
+  },
+  "tube_dz mm": {
+   "mean": 2.51,
+   "std": 2.42,
+   "p95_abs": 6.57,
+   "max_abs": 9.39
+  }
+ },
+ "neck": [
+  0.878,
+  0.017,
+  0.386
+ ],
+ "cam": {
+  "W": 960,
+  "H": 600,
+  "fovy": 80.0,
+  "pos": [
+   0.0365,
+   0.023,
+   0.0489
+  ]
+ },
+ "noise": {
+  "baseline": 0.05,
+  "white_px": 0.08,
+  "corr_px": 0.12,
+  "corr_sigma_px": 4.0,
+  "edge_bleed": 0.5,
+  "holes": 0.03,
+  "scale": 0.004,
+  "zmin": 0.1,
+  "zmax": 3.0
+ },
+ "cal_err": {
+  "pos_mm": 1.2,
+  "rot_deg": 0.2
+ },
+ "dr": {
+  "xy_m": 0.05,
+  "yaw_deg": 10.0,
+  "obj_xy_m": 0.002,
+  "obj_yaw_deg": 3.0
+ },
+ "sec_per_estimate_p50": 52.53,
+ "wall_s": 780.6,
+ "cols": [
+  "stand_dx",
+  "stand_dy",
+  "stand_dyaw",
+  "rack_dx",
+  "rack_dy",
+  "rack_dyaw",
+  "tube_dx",
+  "tube_dy",
+  "tube_dz"
+ ],
+ "worst": [
+  [
+   369,
+   11.5
+  ],
+  [
+   268,
+   10.5
+  ],
+  [
+   267,
+   9.5
+  ],
+  [
+   234,
+   9.4
+  ],
+  [
+   189,
+   9.3
+  ]
+ ]
+}

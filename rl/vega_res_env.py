@@ -95,7 +95,7 @@ class BimanualGpuEnv:
         self.thumb_press_scale = thumb_press_scale; self.reward_scale = float(reward_scale)
         if thumb_press_scale is not None: self.cfg['thumb_press_scale'] = float(thumb_press_scale)
         if self.reward_scale != 1.: self.cfg['reward_scale'] = self.reward_scale
-        m = mujoco.MjModel.from_xml_path(str(self.task/'scene.xml')); self.mjm = m
+        m = X.load_model(self.task/'scene.xml', extras); self.mjm = m   # (11-10) + the student's wrist depth cameras when extras.student.depth
         r = np.load(self.task/'reference.npz'); self.dt = float(m.opt.timestep)
         if not math.isclose(float(r['sim_dt']), self.dt): raise ValueError('scene timestep != physics sim_dt')
         self.substeps = int(round(CONTROL_DT/self.dt)); self.per_frame = int(round(.01/self.dt)); self.frame_step = int(round(CONTROL_DT/.01))
@@ -183,7 +183,7 @@ class BimanualGpuEnv:
         self.obs_noise = {}; self.offset_ramp = .5
         if self.dr_on: self._dr_init(); self.set_dr(dr)
         if obs_mode == 'deployable': self._actor_init()
-        X.init(self, extras or {})
+        X.init(self, extras or {}); X.tip_init(self); X.perturb_init(self)   # (11-12) tip vs tube (reward / teacher obs), hand pushes; both off by default
         if self.dr_on: X.holder_init(self)
         X.student_init(self)
         self.ep_stats = self._new_stats()
@@ -367,7 +367,7 @@ class BimanualGpuEnv:
         self.prev[ids] = 0; self.prev2[ids] = 0; self.res[ids] = 0
         self.prev_a[ids] = 0
         if self.dr is not None: self._sample_dr(ids, frames)
-        X.reset(self, ids)
+        X.reset(self, ids); X.perturb_reset(self, ids)
         X.holder_reset(self, ids, frames); X.gate_reset(self, ids)
         X.measure(self, ids, frames)
         return ids
@@ -386,7 +386,7 @@ class BimanualGpuEnv:
         if self.base_off is not None: self.mf['body_pos'][:, self.pelvis, :2] = self.m0['body_pos'][self.pelvis, :2]+self.base_off*self._offset_weight(self.substeps*self.dt)[:, None]
         skew = self.dr is not None and 'cmd_skew_s' in self.dr
         X.holder_step(self, self.frame.clamp(max=self.nframes-1))
-        base = self.frame*self.per_frame; X.begin_step(self, rapp, base)
+        base = self.frame*self.per_frame; X.begin_step(self, rapp, base); X.perturb_step(self)   # (11-12) hand pushes (extras.perturb)
         for s in range(self.substeps):
             self.x_sub = s
             if skew: cmd = self.cmd_sim[(base[:, None]+s-self.skew[:, None]*self.finger_mask).clamp(0, len(self.cmd_sim)-1), self.t_nu]+rapp
@@ -479,6 +479,7 @@ class BimanualGpuEnv:
                 rel = rinv(W)@X.ref_w(self, s, j)
                 parts += [rel[:, :3, 3], rel[:, :3, :2].flatten(1)]
             parts.append(self.plunger_ref[j, None])
+        parts += X.obs_extra(self, k, OFFSETS)   # (11-12) [] unless extras.tip.obs
         return torch.nan_to_num(torch.cat(parts, 1), 0., 0., 0.).clamp(-1e3, 1e3)
 
     # ------------------------------------------------------------------ episode statistics
