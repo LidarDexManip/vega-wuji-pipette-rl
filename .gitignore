@@ -6,16 +6,28 @@ tb/
 # third-party meshes go here locally; never commit them
 assets/*
 !assets/asset_list.tsv
-# (11-10) not committed: Blender scenes (embed the robot / lab meshes), raw camera captures, the 175M-step midpoint renders
-# (superseded by the final ones) and the single-policy clips that the compare_* videos already show side by side
+# (11-10) not committed: Blender scenes (embed the robot / lab meshes), raw camera captures
 *.blend
 *.blend1
 perception/snapshots/
 perception/recordings/
-videos/kin_ref/
-videos/blender/KA_175M_world2/
-videos/kin_ref_final/*_world*.mp4
-!videos/kin_ref_final/compare_world*.mp4
-videos/caps_rounds/*_world*.mp4
-!videos/caps_rounds/compare_world*.mp4
-videos/**/*.npz
+# (11-12) no videos, figures or logs in the repo (generated locally / on the node; regenerate them with the scripts)
+videos/
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm
+*.gif
+*.png
+*.jpg
+*.jpeg
+*.bmp
+*.tif
+*.tiff
+*.webp
+*.svg
+*.pdf
+*.eps
+*.log
+logs/
