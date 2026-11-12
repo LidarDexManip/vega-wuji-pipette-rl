@@ -1,0 +1,471 @@
+{
+ "env_steps": 350060544,
+ "wall_s": 7296.66557765007,
+ "it": 1187,
+ "status": "complete",
+ "starts": 1,
+ "ckpts": [
+  "model_50135040.pt",
+  "model_100270080.pt",
+  "model_150110208.pt",
+  "model_200245248.pt",
+  "model_250085376.pt",
+  "model_300220416.pt",
+  "model_350060544.pt"
+ ],
+ "config": {
+  "file": "tracker/configs/kin_d02v3_tip_g3.json",
+  "C": {
+   "num_envs": 4096,
+   "device": "cuda:0",
+   "seed": 5,
+   "max_env_steps": 350000000.0,
+   "wall_hours": 8.0,
+   "ckpt_minutes": 60,
+   "latest_minutes": 5,
+   "steps_per_env": 24,
+   "lr": 0.0003,
+   "init_std": 0.1,
+   "arm_scale": null,
+   "finger_scale": null,
+   "group_scale": {
+    "FR": 0.1,
+    "AR": 0.04,
+    "FL": 0.05,
+    "AL": 0.04
+   },
+   "reward_scale": 0.01,
+   "no_value_clip": true,
+   "deployable": false,
+   "dr": "../../rl/configs/dr_rr1_kv3_zeta.json",
+   "extras": {
+    "real_cmd": true,
+    "ema_alpha": 0.5,
+    "holder": {
+     "stand_xy_mm": 50,
+     "stand_yaw_deg": 10,
+     "rack_xy_mm": 50,
+     "rack_yaw_deg": 10,
+     "blend_s": 1.5,
+     "meas_xy_mm": 5,
+     "meas_yaw_deg": 2,
+     "hole_pairs": [
+      [
+       "r0c0",
+       "r0c0"
+      ],
+      [
+       "r0c1",
+       "r0c1"
+      ],
+      [
+       "r0c2",
+       "r0c2"
+      ],
+      [
+       "r0c3",
+       "r0c3"
+      ],
+      [
+       "r0c4",
+       "r0c4"
+      ],
+      [
+       "r1c0",
+       "r1c0"
+      ],
+      [
+       "r1c1",
+       "r1c1"
+      ],
+      [
+       "r1c2",
+       "r1c2"
+      ],
+      [
+       "r1c3",
+       "r1c3"
+      ],
+      [
+       "r1c4",
+       "r1c4"
+      ]
+     ],
+     "engage_fix": true,
+     "hole_centres": "scene"
+    },
+    "w": {
+     "contact_set": 0.0,
+     "contact_graph": 0.0,
+     "wrench_support": 0.0,
+     "free_finger_acc": 0.0,
+     "action_rate": 0.5,
+     "elbow_height": 50.0,
+     "joint_margin": 1.0,
+     "finger_jerk": 0.2,
+     "thumb_prior": 0.5,
+     "posture": 0.1,
+     "finger_band": 3.0,
+     "tube_tilt": 1.0,
+     "arm_band": 1.0,
+     "finger_still": 1.0,
+     "pipette_seat": 1.0,
+     "contact_keep": 0.5,
+     "contact_drift": 0.5,
+     "contact_slip": 0.5,
+     "wrench_margin": 0.5,
+     "tip_align": 10.0
+    },
+    "cmd_hz": 100,
+    "clamp_after_ff": true,
+    "band_on_deviation": true,
+    "temporal_off_gates": [
+     "gate_grasp_shift_right",
+     "gate_grasp_shift_left",
+     "gate_regrasp"
+    ],
+    "tip": {
+     "obs": true
+    },
+    "perturb": {
+     "rate_hz": 0.2,
+     "force_n": [
+      2.0,
+      15.0
+     ],
+     "torque_nm": [
+      0.0,
+      0.5
+     ],
+     "dur_s": [
+      0.1,
+      0.4
+     ],
+     "bodies": [
+      "right_wrist",
+      "left_wrist"
+     ],
+     "start_delay_s": 0.5,
+     "scale": 1.0
+    }
+   },
+   "nconmax": 200,
+   "njmax": 1600,
+   "naconmax_per_world": 400,
+   "starts": null,
+   "task": "../../tasks/task_d02_straight_v3",
+   "out": "../runs/kin_d02v3_tip_g3",
+   "ckpt_steps": 50000000.0,
+   "caps": {
+    "coeff": 0.1,
+    "norm": 0.01,
+    "cap": 25.0,
+    "pairs": 8192
+   },
+   "tracker": {
+    "voc_start": 0.0,
+    "voc_kp": 2000.0,
+    "voc_kd": 90.0,
+    "voc_free_frac": 0.1,
+    "warp": [
+     1.0,
+     1.0
+    ],
+    "curriculum": {
+     "success_threshold": 0.6,
+     "window_its": 5,
+     "factor": 0.8,
+     "floor": 0.05,
+     "min_its_per_level": 20
+    },
+    "press_progress_w": 2.0,
+    "perturb_ramp_steps": [
+     20000000.0,
+     120000000.0
+    ]
+   },
+   "plunger_weight": 8.0,
+   "thumb_press_scale": 2.0,
+   "_note": "11-12 teacher on task_d02_straight_v3 (the pipette tip actually goes INTO the tube: peg-in-hole insertion from 15 mm above the rim along the axis; true tip point; the three insertions 2x slower). Warm start from kin_d02v2_ft_g3/final.pt with the observation expanded by 22 (tracker/expand_obs_ckpt.py --add 22; extras.tip.obs: tip / axis in the tube frame + errors to the reference at the OFFSETS frames). New reward w.tip_align = 10 (tip / axis in the tube frame vs the reference, gated approach .. extraction). Hand pushes extras.perturb (both wrists, 2-15 N / 0-0.5 Nm, 0.1-0.4 s half-sine, 0.2 per s per hand) ramped in over env steps 2e7 .. 1.2e8. Everything else as kin_d02v2_ft_g3."
+  },
+  "env": {
+   "task": "tasks/task_d02_straight_v3",
+   "num_envs": 4096,
+   "arm_scale": 0.08,
+   "finger_scale": 0.25,
+   "plunger_weight": 8.0,
+   "plunger_sigma": 0.003,
+   "control_dt": 0.02,
+   "nconmax": 200,
+   "njmax": 1600,
+   "naconmax": 1638400,
+   "dr": {
+    "kp_g1": [
+     0.5,
+     2.0
+    ],
+    "kv_g1": [
+     0.7,
+     1.4
+    ],
+    "kp_hand": [
+     0.7,
+     1.4
+    ],
+    "kv_hand": [
+     2.1,
+     4.2
+    ],
+    "friction_hand_object": [
+     0.7,
+     1.3
+    ],
+    "friction_pipette_tube": [
+     0.7,
+     1.3
+    ],
+    "object_mass": [
+     0.8,
+     1.2
+    ],
+    "joint_offset_g1": 0.01,
+    "joint_offset_hand": 0.02,
+    "object_start_xy_mm": 2.0,
+    "object_start_yaw_deg": 3.0,
+    "kv_g1_x_sqrt_kp": [
+     0.95,
+     1.4
+    ]
+   },
+   "thumb_press_scale": 2.0,
+   "reward_scale": 0.01,
+   "group_scale": {
+    "FR": 0.1,
+    "AR": 0.04,
+    "FL": 0.05,
+    "AL": 0.04
+   },
+   "feedforward": true,
+   "extras": {
+    "real_cmd": true,
+    "margin_rad": 0.1,
+    "speed_cap": 2.5,
+    "ema_alpha": 0.5,
+    "cmd_hz": 100,
+    "vel_ff": true,
+    "clamp_after_ff": true,
+    "band_on_deviation": true,
+    "event_gate": null,
+    "w": {
+     "contact_set": 0.0,
+     "contact_graph": 0.0,
+     "wrench_support": 0.0,
+     "free_finger_acc": 0.0,
+     "action_rate": 0.5,
+     "elbow_height": 50.0,
+     "joint_margin": 1.0,
+     "finger_jerk": 0.2,
+     "thumb_prior": 0.5,
+     "posture": 0.1,
+     "finger_band": 3.0,
+     "tube_tilt": 1.0,
+     "arm_band": 1.0,
+     "finger_still": 1.0,
+     "pipette_seat": 1.0,
+     "contact_keep": 0.5,
+     "contact_drift": 0.5,
+     "contact_slip": 0.5,
+     "wrench_margin": 0.5,
+     "torque_rate_arm": 0.0,
+     "torque_rate_finger": 0.0,
+     "tip_align": 10.0
+    },
+    "tip": {
+     "obs": true,
+     "sigma_coarse_mm": 20.0,
+     "sigma_fine_mm": 4.0,
+     "sigma_ang_deg": 8.0,
+     "obs_scale_mm": 20.0,
+     "obs_clip": 5.0
+    },
+    "torque_rate_frac": 0.01,
+    "torque_rate_cap": 25.0,
+    "action_rate_norm": null,
+    "action_rate_cap": null,
+    "sigma_graph_mm": 3.0,
+    "force_alpha": 0.1,
+    "torque_length": 0.05,
+    "log": true,
+    "keep_hysteresis": 0.5,
+    "drift_mm": 1.0,
+    "slip_mm": 1.0,
+    "temporal_off_gates": [
+     "gate_grasp_shift_right",
+     "gate_grasp_shift_left",
+     "gate_regrasp"
+    ],
+    "margin_fmax": 3.0,
+    "margin_mu": 1.5,
+    "margin_rho": 0.3,
+    "margin_iters": 100,
+    "margin_every": 4,
+    "margin_gate": true,
+    "log_margin": false,
+    "track_w": {
+     "object": 8.0,
+     "link": 1.0,
+     "joint": 1.0,
+     "wrist": 1.0,
+     "world": 1.0
+    },
+    "holder": {
+     "stand_xy_mm": 50,
+     "stand_yaw_deg": 10,
+     "rack_xy_mm": 50,
+     "rack_yaw_deg": 10,
+     "blend_s": 1.5,
+     "meas_xy_mm": 5,
+     "meas_yaw_deg": 2,
+     "hole_pairs": [
+      [
+       "r0c0",
+       "r0c0"
+      ],
+      [
+       "r0c1",
+       "r0c1"
+      ],
+      [
+       "r0c2",
+       "r0c2"
+      ],
+      [
+       "r0c3",
+       "r0c3"
+      ],
+      [
+       "r0c4",
+       "r0c4"
+      ],
+      [
+       "r1c0",
+       "r1c0"
+      ],
+      [
+       "r1c1",
+       "r1c1"
+      ],
+      [
+       "r1c2",
+       "r1c2"
+      ],
+      [
+       "r1c3",
+       "r1c3"
+      ],
+      [
+       "r1c4",
+       "r1c4"
+      ]
+     ],
+     "engage_fix": true,
+     "hole_centres": "scene"
+    },
+    "perturb": {
+     "rate_hz": 0.2,
+     "force_n": [
+      2.0,
+      15.0
+     ],
+     "torque_nm": [
+      0.0,
+      0.5
+     ],
+     "dur_s": [
+      0.1,
+      0.4
+     ],
+     "bodies": [
+      "right_wrist",
+      "left_wrist"
+     ],
+     "start_delay_s": 0.5,
+     "scale": 1.0
+    }
+   },
+   "tracker": {
+    "voc_scale": 0.0,
+    "voc_kp": 2000.0,
+    "voc_kd": 90.0,
+    "voc_free_frac": 0.1,
+    "warp": [
+     1.0,
+     1.0
+    ],
+    "idle_finger_mask": false,
+    "idle_speed_deg_s": 0.3,
+    "idle_min_s": 0.3
+   }
+  },
+  "ppo": {
+   "num_steps_per_env": 24,
+   "save_interval": 1000000000,
+   "obs_groups": {
+    "actor": [
+     "policy"
+    ],
+    "critic": [
+     "policy"
+    ]
+   },
+   "logger": "tensorboard",
+   "check_for_nan": true,
+   "algorithm": {
+    "class_name": "PPO",
+    "num_learning_epochs": 5,
+    "num_mini_batches": 4,
+    "clip_param": 0.2,
+    "gamma": 0.99,
+    "lam": 0.95,
+    "value_loss_coef": 1.0,
+    "entropy_coef": 0.001,
+    "learning_rate": 0.0003,
+    "max_grad_norm": 1.0,
+    "schedule": "adaptive",
+    "desired_kl": 0.01,
+    "use_clipped_value_loss": false
+   },
+   "actor": {
+    "class_name": "MLPModel",
+    "hidden_dims": [
+     512,
+     256,
+     128
+    ],
+    "activation": "elu",
+    "obs_normalization": true,
+    "distribution_cfg": {
+     "class_name": "GaussianDistribution",
+     "init_std": 0.1,
+     "std_type": "scalar"
+    }
+   },
+   "critic": {
+    "class_name": "MLPModel",
+    "hidden_dims": [
+     512,
+     512,
+     256,
+     128
+    ],
+    "activation": "elu",
+    "obs_normalization": true
+   }
+  },
+  "obs_dim": 1162,
+  "valid_starts": 978
+ },
+ "voc_scale": 0.0,
+ "its_at_level": 1187,
+ "reason": null
+}

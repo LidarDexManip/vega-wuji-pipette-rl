@@ -22,9 +22,14 @@ p.add_argument('--every-s', type=float, default=1.0); p.add_argument('--out', ty
 p.add_argument('--diag-pipette', action='store_true', help='(11-06) per world: pipette seat error at the right release, right-hand contacts with the pipette after it, wrist error and stand-contact force at the extraction')
 p.add_argument('--from-start', type=int, default=0, help='(11-06) N worlds that all start at frame 0 (whole task; full slip window) instead of the every-s starts')
 p.add_argument('--student', type=Path, help='distilled deployable student (distill.py checkpoint); the config must carry extras.student')
-p.add_argument('--perturb', action='store_true', help='(11-12) keep the config\'s extras.perturb hand pushes (robustness eval); default: pushes off'); a0 = p.parse_args()
+p.add_argument('--perturb', action='store_true', help='(11-12) keep the config\'s extras.perturb hand pushes (robustness eval); default: pushes off')
+p.add_argument('--mount-rand', type=float, nargs=2, metavar=('XYZ_MM', 'RPY_DEG'),
+               help='(11-12) override extras.student.depth.mount_rand: +-XYZ_MM on each wrist axis, +-RPY_DEG about each camera axis (0 0 = off)')
+p.add_argument('--task', type=Path, help='(11-12) evaluate on this task dir instead of the config\'s (e.g. a desk-edge variant from tracker/move_table.py)'); a0 = p.parse_args()
 C = json.loads(a0.config.read_text()); rel = lambda x: (Path(x) if Path(x).is_absolute() else (a0.config.parent/x)).resolve()
-task = rel(C['task']); dr = None if a0.no_dr else (C.get('dr') if isinstance(C.get('dr'), dict) or C.get('dr') is None else json.loads(rel(C['dr']).read_text()))
+if a0.mount_rand is not None and (C.get('extras') or {}).get('student', {}).get('depth'):
+    C['extras']['student']['depth']['mount_rand'] = ({'xyz_mm': [a0.mount_rand[0]]*3, 'rpy_deg': [a0.mount_rand[1]]*3} if any(a0.mount_rand) else None)
+task = a0.task.resolve() if a0.task else rel(C['task']); dr = None if a0.no_dr else (C.get('dr') if isinstance(C.get('dr'), dict) or C.get('dr') is None else json.loads(rel(C['dr']).read_text()))
 r = np.load(task/'reference.npz'); t = r['timestamps']; nfr = len(t)
 starts = [k-(k % 2) for k in np.arange(0, nfr-200, int(round(a0.every_s/.01)))]*a0.repeat; N = len(starts)
 if a0.from_start: starts = [0]*a0.from_start; N = len(starts)
@@ -255,7 +260,8 @@ tip_detail = {'in_bore_s_p50_min': [round(float(np.median(_pr(tip_s.cpu().numpy(
               'tip_off_axis_mm_mean_p50_max': [round(float(np.median(_pr(tlm_))), 1), round(float(_pr(tlm_).max()), 1)],
               'tip_depth_in_bore_max_mm_p50': round(float(np.median(_pr(tip_dmax.cpu().numpy())))*1e3, 1)}
 f2 = lambda x: round(float(x), 3)
-res = {'layer': 'RL env rollouts (MuJoCo Warp), deterministic actor mean' if policy else 'RL env rollouts, ZERO residual', 'ckpt': str(a0.ckpt or a0.student) if (a0.ckpt or a0.student) else None, 'actor': 'student (deployable obs)' if a0.student else ('teacher (full state)' if a0.ckpt else 'none'),
+res = {'camera_mount_rand': ((C.get('extras') or {}).get('student') or {}).get('depth', {}).get('mount_rand') if isinstance(((C.get('extras') or {}).get('student') or {}).get('depth'), dict) else None,
+       'layer': 'RL env rollouts (MuJoCo Warp), deterministic actor mean' if policy else 'RL env rollouts, ZERO residual', 'ckpt': str(a0.ckpt or a0.student) if (a0.ckpt or a0.student) else None, 'actor': 'student (deployable obs)' if a0.student else ('teacher (full state)' if a0.ckpt else 'none'),
        'dr': None if dr is None else 'on', 'n': N, 'reach_end': int(end_ok.sum()), 'pipette_seated': int(seat['pipette'].sum()), 'tube_seated': int(seat['tube'].sum()),
        'press_ok_of_press_starts': f'{int((pl_ok & press_rows).sum())}/{int(press_rows.sum())}', 'press_rule (decides)': 'max depth >= 50 % of the demo max and >= 90 % depth for >= 1.5 s',
        'press_ok_relative (info, user to rule)': f'{int((pl_ok_rel & press_rows).sum())}/{int(press_rows.sum())} (>= 0.9 x the demo {ref_s:.2f} s)',

@@ -1,10 +1,6 @@
 {
- "_note": "11-12 student on task_d02_straight_v3 (pipette tip INTO the tube; slower insertions) from teacher kin_d02v3_tip_g3 (teacher obs incl. extras.tip.obs). Same student as student_d02v2_ego (yaw23 wrist depth cameras, head-camera holder / tube estimate error model x1.25 + extra noise, 680 iterations, 3 GPUs). NEW: hand pushes (extras.perturb as the teacher's) ramped in over iterations 50 .. 250 (perturb_ramp_iters); the teacher labels the actions under the pushes.",
- "task": "../../tasks/task_d02_straight_v3",
- "out": "../runs/student_d02v3_ego_g3",
- "teacher_config": "../../tracker/configs/kin_d02v3_tip_g3.json",
- "teacher_ckpt": "../../tracker/runs/kin_d02v3_tip_g3/final.pt",
  "num_envs": 4096,
+ "device": "cuda:0",
  "seed": 5,
  "wall_hours": 4.5,
  "max_iters": 680,
@@ -63,15 +59,6 @@
   "obs_q_std_hand": 0.01,
   "obs_v_std_g1": 0.05
  },
- "group_scale": {
-  "FR": 0.1,
-  "AR": 0.04,
-  "FL": 0.05,
-  "AL": 0.04
- },
- "plunger_weight": 8.0,
- "thumb_press_scale": 2.0,
- "reward_scale": 0.01,
  "extras": {
   "real_cmd": true,
   "ema_alpha": 0.5,
@@ -217,6 +204,26 @@
    }
   }
  },
+ "arm_scale": null,
+ "finger_scale": null,
+ "group_scale": {
+  "FR": 0.1,
+  "AR": 0.04,
+  "FL": 0.05,
+  "AL": 0.04
+ },
+ "reward_scale": 0.01,
+ "nconmax": 200,
+ "njmax": 1600,
+ "naconmax_per_world": 400,
+ "starts": null,
+ "_note": "11-12 student on task_d02_straight_v3 (pipette tip INTO the tube; slower insertions) from teacher kin_d02v3_tip_g3 (teacher obs incl. extras.tip.obs). Same student as student_d02v2_ego (yaw23 wrist depth cameras, head-camera holder / tube estimate error model x1.25 + extra noise, 680 iterations, 3 GPUs). NEW: hand pushes (extras.perturb as the teacher's) ramped in over iterations 50 .. 250 (perturb_ramp_iters); the teacher labels the actions under the pushes.",
+ "task": "../../tasks/task_d02_straight_v3",
+ "out": "../runs/student_d02v3_ego_g3",
+ "teacher_config": "../../tracker/configs/kin_d02v3_tip_g3.json",
+ "teacher_ckpt": "../../tracker/runs/kin_d02v3_tip_g3/final.pt",
+ "plunger_weight": 8.0,
+ "thumb_press_scale": 2.0,
  "perturb_ramp_iters": [
   50,
   250

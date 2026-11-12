@@ -76,6 +76,8 @@ So the fixes above stop where RL takes over. What is left for d02:
 ## Knobs
 
 - `--fwd`, `--lat`, `--base-x`, `--base-y`: where the demo sits relative to the robot. **The real robot must stand the same way.** For d02 that is square to the table, base front 12 cm from the edge, holders about 0.6 m ahead of the base.
+- `--base-z` (11-12): the robot base height above the floor, i.e. the robot vs the table height (template table top 0.72 m; + = the robot sits higher relative to the table). Holders, objects and the demo stay on the table, and the IK re-solves the arms. `--base-z 0` reproduces v3 exactly. Test builds on d02: −0.015 → the right-arm IK misses by up to 5.2 mm (17 frames) and the hand cuts the pipette by up to 6 mm, so the retarget needs adjusting; +0.036 → IK within 0.42 mm, no new penetrations.
+- `tracker/move_table.py SRC DST --near-dx DX` (11-12, after the build): copies a task and moves only the table's near (robot-side) edge and the near legs by DX towards the robot. The far edge, holders, objects and reference stay put; `ego/` is kept. `task_d02_straight_v3_desk` = v3 with `--near-dx 0.133` (the desk edge the real head ZED sees).
 - `--hole`: the rack hole the tube was picked from (and returns to). Check it on `overlay_start.png`.
 - `--grasp template|demo`, `--midair DZ DFWD ALPHA SPIN_P SPIN_U DLAT` (skips the search), `--blend-s`, `--smooth-s`.
 - The search grid is `SEARCH` in `build_demo_task.py`. If no candidate is feasible, the build stops with a message.

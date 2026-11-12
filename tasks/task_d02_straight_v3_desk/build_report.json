@@ -1,0 +1,383 @@
+{
+ "episode": "/home/jren313/Projects/datasets/pipette-tasks/pipette_depth_02_tapir",
+ "args": {
+  "episode": "/home/jren313/Projects/datasets/pipette-tasks/pipette_depth_02_tapir",
+  "out": "tasks/task_d02_straight_v3_noprior",
+  "fwd": 0.3,
+  "lat": 0.0,
+  "base_x": 0.890829257623,
+  "base_y": 0.0,
+  "hole": "r1c1",
+  "blend_s": 1.5,
+  "smooth_s": 0.08,
+  "pre_s": 2.5,
+  "post_s": 1.6,
+  "midair": [
+   -0.1,
+   0.1,
+   0.6,
+   30.0,
+   0.0,
+   0.1
+  ],
+  "grasp": "template",
+  "win_right": [
+   7.0,
+   9.5
+  ],
+  "win_left": [
+   10.5,
+   14.5
+  ],
+  "force": true
+ },
+ "table": {
+  "cam_height": 0.6303890340066639,
+  "edge_yaw_deg": 5.913800275735999,
+  "edge_inliers": [
+   55,
+   145
+  ],
+  "edge_dist_m": 0.8777559977149977
+ },
+ "events_demo_s": {
+  "pipette_lift": 5.5,
+  "pipette_seat": 16.37,
+  "tube_lift": 8.53,
+  "tube_seat": 18.13
+ },
+ "holders": {
+  "stand_shift_m": [
+   0.173,
+   -0.1174,
+   0.0
+  ],
+  "stand_yaw_change_deg": 11.32,
+  "rack_shift_m": [
+   0.083,
+   0.1165,
+   0.0
+  ],
+  "hole": "r1c1",
+  "pipette_seat_world": [
+   0.2752,
+   0.1752,
+   0.8609
+  ],
+  "tube_seat_world": [
+   0.2744,
+   -0.1464,
+   0.7856
+  ],
+  "demo_end_vs_start_pipette_mm": 4.3,
+  "demo_end_vs_start_tube_rim_mm": 2.9,
+  "demo_tube_tilt_in_rack_deg": 13.8,
+  "demo_pipette_tilt_in_stand_deg": 1.9
+ },
+ "scene": {
+  "moved_geoms": {
+   "stand": 233,
+   "rack": 531
+  },
+  "nq": 75,
+  "nu": 54
+ },
+ "pipette_tip_mesh_m": [
+  -0.0077,
+  -0.0,
+  -0.127
+ ],
+ "holder_boxes_world": {
+  "stand": [
+   0.257,
+   0.317,
+   0.147,
+   0.206,
+   0.836
+  ],
+  "rack": [
+   0.22,
+   0.402,
+   -0.205,
+   -0.127,
+   0.78
+  ]
+ },
+ "grasp": {
+  "right": {
+   "source": "template latched grasp",
+   "latched_frame_s": 11.33,
+   "open_frame_s": 3.03,
+   "obj_in_wrist_cm": [
+    -7.1,
+    2.5,
+    -8.5
+   ],
+   "spread_mm_max": 9.7
+  },
+  "left": {
+   "source": "template latched grasp",
+   "latched_frame_s": 14.58,
+   "open_frame_s": 6.4,
+   "obj_in_wrist_cm": [
+    -2.7,
+    -9.0,
+    -9.5
+   ],
+   "spread_mm_max": 5.2
+  }
+ },
+ "clear_of_holder_s": {
+  "pipette": [
+   5.96,
+   17.02
+  ],
+  "tube": [
+   8.78,
+   20.02
+  ]
+ },
+ "midair_search": {
+  "chosen": "fixed",
+  "args": [
+   -0.1,
+   0.1,
+   0.6,
+   30.0,
+   0.0,
+   0.1
+  ]
+ },
+ "tip_in_tube": {
+  "window_s": [
+   12.42,
+   15.25
+  ],
+  "insert": {
+   "k": {
+    "approach": 720,
+    "descent": 810,
+    "in": 942,
+    "out": 1225,
+    "extracted": 1265,
+    "returned": 1402
+   },
+   "t_s": {
+    "approach": 10.2,
+    "descent": 11.1,
+    "in": 12.42,
+    "out": 15.25,
+    "extracted": 15.65,
+    "returned": 17.02
+   },
+   "depth_mm_in_out_max": [
+    73.0,
+    26.1,
+    75.0
+   ]
+  }
+ },
+ "object_speed": {
+  "pipette": {
+   "lin_max_m_s": 0.49,
+   "ang_max_deg_s": 60.0,
+   "ang_max_at_s": 6.74,
+   "lin_max_m_s_after_retime": 0.49
+  },
+  "tube": {
+   "lin_max_m_s": 0.26,
+   "ang_max_deg_s": 33.0,
+   "ang_max_at_s": 16.86,
+   "lin_max_m_s_after_retime": 0.26
+  }
+ },
+ "ik": {
+  "right": {
+   "pos_mm_p50_max": [
+    0.0,
+    0.4
+   ],
+   "rot_deg_max": 0.16,
+   "frames_over_2mm_or_2deg": 0,
+   "worst_times_s": [
+    14.9,
+    14.91,
+    14.89,
+    14.92,
+    14.93
+   ],
+   "max_step_deg": 0.99,
+   "margin_to_limit_deg_min": 1.1,
+   "max_joint_speed_rad_s": 1.61,
+   "frames_over_2rad_s": 0,
+   "fastest_times_s": [
+    14.92,
+    14.91,
+    14.93
+   ],
+   "max_joint_speed_rad_s_after_retime": 1.61
+  },
+  "left": {
+   "pos_mm_p50_max": [
+    0.0,
+    0.0
+   ],
+   "rot_deg_max": 0.0,
+   "frames_over_2mm_or_2deg": 0,
+   "worst_times_s": [
+    8.66,
+    18.87,
+    18.89,
+    8.68,
+    8.67
+   ],
+   "max_step_deg": 0.75,
+   "margin_to_limit_deg_min": 21.1,
+   "max_joint_speed_rad_s": 1.29,
+   "frames_over_2rad_s": 0,
+   "fastest_times_s": [
+    9.23,
+    9.22,
+    9.24
+   ],
+   "max_joint_speed_rad_s_after_retime": 1.29
+  }
+ },
+ "smoothness": {
+  "pipette": {
+   "max_accel_m_s2": 2.37,
+   "band_8_24Hz_mm": 0.008
+  },
+  "tube": {
+   "max_accel_m_s2": 1.33,
+   "band_8_24Hz_mm": 0.003
+  },
+  "wrist_right": {
+   "max_accel_m_s2": 2.34,
+   "band_8_24Hz_mm": 0.008
+  },
+  "wrist_left": {
+   "max_accel_m_s2": 1.59,
+   "band_8_24Hz_mm": 0.004
+  },
+  "arm_L": {
+   "band_8_24Hz_deg_worst_joint": 0.0015
+  },
+  "arm_R": {
+   "band_8_24Hz_deg_worst_joint": 0.0139
+  },
+  "pass": true,
+  "limits": {
+   "accel_m_s2": 10.0,
+   "band_mm": 0.1,
+   "band_deg": 0.03
+  }
+ },
+ "thumb_open_clearance_mm": {
+  "right": {
+   "template_open": -10.5,
+   "replaced_deg": [
+    38.5,
+    -85.0,
+    15.0,
+    50.0
+   ],
+   "clearance": 10.8
+  },
+  "left": {
+   "template_open": -0.1
+  }
+ },
+ "thumb_on_cap_residual_mm_p50_max": [
+  0.03,
+  0.2
+ ],
+ "retime": {
+  "factor": 2.0,
+  "ramp_s": 0.2,
+  "pad_s": 0.1,
+  "segments_demo_s": {
+   "pipette_into_stand": [
+    15.76,
+    16.37
+   ],
+   "tube_into_rack": [
+    17.75,
+    18.13
+   ],
+   "tip_into_tube": [
+    10.9,
+    11.56
+   ]
+  },
+  "segments_ref_s": {
+   "pipette_into_stand": [
+    17.02,
+    18.23
+   ],
+   "tube_into_rack": [
+    20.02,
+    20.78
+   ],
+   "tip_into_tube": [
+    11.1,
+    12.42
+   ]
+  },
+  "duration_s": [
+   16.73,
+   19.58
+  ]
+ },
+ "smoothness_before_retime": {
+  "pipette": {
+   "max_accel_m_s2": 1.94,
+   "band_8_24Hz_mm": 0.008
+  },
+  "tube": {
+   "max_accel_m_s2": 1.42,
+   "band_8_24Hz_mm": 0.004
+  },
+  "wrist_right": {
+   "max_accel_m_s2": 2.13,
+   "band_8_24Hz_mm": 0.009
+  },
+  "wrist_left": {
+   "max_accel_m_s2": 1.59,
+   "band_8_24Hz_mm": 0.005
+  },
+  "arm_R": {
+   "band_8_24Hz_deg_worst_joint": 0.015
+  },
+  "arm_L": {
+   "band_8_24Hz_deg_worst_joint": 0.0017
+  },
+  "pass": true,
+  "limits": {
+   "accel_m_s2": 10.0,
+   "band_mm": 0.1,
+   "band_deg": 0.03
+  }
+ },
+ "events_ref_s": {
+  "pipette_lift": 5.5,
+  "pipette_seat": 18.23,
+  "tube_lift": 8.53,
+  "tube_seat": 20.78
+ },
+ "tip_path": {
+  "frames_through_wall": 0,
+  "through_wall_s": [],
+  "tip_in_bore_press_frac": 1.0,
+  "min_bore_clearance_mm": 9.95,
+  "pass": true
+ },
+ "reference_penetrations_gt3mm": {
+  "left_object|left_ring_finger_distal": {
+   "frames": 4,
+   "worst_mm": -3.3,
+   "first_s": 7.7,
+   "last_s": 21.5
+  }
+ }
+}

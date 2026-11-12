@@ -6,7 +6,25 @@ Robot: Dexmate Vega-U, two 7-DoF arms, each with a 20-DoF Wuji hand2 beta1. Fixe
 
 Everything here is **simulation**. Nothing has run on the real robot yet. Each number below names the file it comes from. Robot, hand, lab and pipette meshes are **not included** (see [Assets](#9-how-to-run)).
 
-## Status (2026-11-10)
+## Status (2026-11-12)
+
+The current work is the **d02 demo line** on branch `d02-v3-tip-insertion` ([below](#current-work-d02-demo-line)). The task is built from one retargeted RGB-D demo, `pipette_depth_02_tapir`.
+
+- **Task `task_d02_straight_v3`.** The pipette tip really goes into the tube, and the three insertions are 2× slower than in v2.
+  - `task_d02_straight_v3_desk` has the same task with the table's near edge matched to the real desk (seen by the head ZED).
+- **Teacher `kin_d02v3_tip_g3`.** From frame 0: 62/64 tubes seated and 61/64 presses with the tip in the tube. Hand pushes do not change this.
+- **Deployable students**, distilled with DAgger. They see wrist depth cameras plus a holder/tube estimate made once from the head camera at the start.
+  - All four seat 59–60/64 tubes from start.
+  - `student_d02v3_ego_ftmount_g3` is the deploy candidate. It is also trained with ±5 mm / ±3° wrist-camera mount errors and keeps 59/64 under them, where the student without that training drops to 37/64.
+- **Open:**
+  - the real table height vs the robot (the measurements conflict; see [Open items](#open-items));
+  - the scan-network student does not follow a commanded place hole;
+  - nothing has run on hardware.
+- **To run any of this on another machine**, see [Running on a new machine](#running-on-a-new-machine).
+
+Sections 1–9 below document the earlier T1k / KA line (rounds R1–R4, up to 11-10). The d02 line reuses its action space, reward, DR and PPO setup except where noted.
+
+**Earlier line, status as of 2026-11-10:**
 
 - **Latest rounds** (§4):
   - The **tc line** keeps the MPC reference. It replaces the demo's contact labels in the reward with contact terms computed from the policy's own contacts. tcs1 adds CAPS action smoothness on the policy mean.
@@ -27,7 +45,207 @@ Everything here is **simulation**. Nothing has run on the real robot yet. Each n
   | Stand yaw ±30° or more (trained ±10°) | 0 % |
 
   Failure causes and the proposed next round are in §5.
-- **Not done yet:** no new student has been distilled, and nothing has run on hardware.
+- **Not done yet (on that line):** no student was distilled from R3B or KA.
+
+## Current work: d02 demo line
+
+Configs carry a `_note` field with the full rationale of each run. The task builder is documented in [docs/DEMO_TO_TASK.md](docs/DEMO_TO_TASK.md), and the head-camera estimate in [docs/EGO_HOLDERS.md](docs/EGO_HOLDERS.md).
+
+### Tasks
+
+| Task | What changed |
+|---|---|
+| `task_d02_straight` (v1) | Built from HF `ytung/pipette-tasks` episode `pipette_depth_02_tapir` by `tracker/demo_to_task.py`. The robot stands square to the table, the holders are at ground-truth poses, and the tube returns to the hole it came from (r1c1). |
+| `task_d02_straight_v2` | Smooth extraction and insertion: a min-jerk profile at 0.3 m/s replaces one-frame height jumps of 6–18 mm. Built with the retarget pinned, `-- --midair -0.10 0.10 0.6 30 0 0.10`. |
+| **`task_d02_straight_v3`** | The pipette tip goes into the tube. `PIP_TIP` is the mesh tip, and `tip_insert` makes a peg-in-hole path along the tube axis; in v1/v2 the tip went in sideways through the tube wall, so in physics it pressed beside the tube. The three insertions run 2× slower: 0.13–0.15 m/s, and the reference grows from 16.7 to 19.6 s. Same build command as v2. |
+| **`task_d02_straight_v3_desk`** | v3 with the table's near edge 13.3 cm closer to the robot. Made with `tracker/move_table.py ... --near-dx 0.133` so that the edge sits where the real head ZED sees it (33.5 cm ahead of the camera in sim, 33.3 cm on the real robot). The holders, objects and reference are unchanged. **Use this task for new runs.** |
+
+### Teacher and students
+
+All runs use 3 B200 GPUs with data-parallel training (`node_tracker_ddp.sh`, `node_distill.sh`).
+
+| Run (results dir) | Config | What it is |
+|---|---|---|
+| **Teacher** `kin_d02v3_tip_g3` | `tracker/configs/kin_d02v3_tip_g3.json` | Warm start from the v2 teacher, with the checkpoint padded for 22 new tip observations (`tracker/expand_obs_ckpt.py`). Trained 3.5e8 steps (~2 h) on v3. Random pushes on both wrists (`extras.perturb`: 2–15 N, 0.1–0.4 s) are ramped in over 2e7–1.2e8 steps. |
+| Student `student_d02v3_ego_g3` | `rl/configs/student_d02v3_ego.json` | DAgger from the teacher, 680 iterations (~2.5 h). Pushes are ramped in over iterations 50–250. |
+| Student `student_d02v3_ego_ft_g3` | `rl/configs/student_d02v3_ego_ft.json` | Continues the student from iteration 680 to 880 with student-only rollouts (β 0) and lr 5e-5. |
+| **Student `student_d02v3_ego_ftmount_g3`** | `rl/configs/student_d02v3_ego_ft_mount.json` | Continues `ft` from 880 to 1080 with wrist-camera mount errors: ±5 mm along each wrist axis and ±3° about each camera axis, per camera and episode (`extras.student.depth.mount_rand`). **Deploy candidate.** |
+| Student `student_d02v3_ego_scan_g3` | `rl/configs/student_d02v3_ego_scan.json` | As `student_d02v3_ego_g3`, from scratch, except for the head-camera input. The holder/tube estimate is replaced by the 64-d embedding of **ScanNet**, a CNN on the initial head-depth crop (`perception/ego_scan_bank.py`, `perception/train_scan_net.py`, weights in `results/ego_scan/`). The arm is re-anchored with ScanNet's own pose prediction. |
+
+**Student observations** come from `obs_mode='deployable'` plus `extras.student`: a 1027-d vector plus two wrist depth images, read by a small CNN in `rl/distill.py`. The layout is in `state.json` → `actor_layout`.
+
+- 3-step history of the measured joint q, q̇ and the previous action;
+- the reference command at 0 / 40 / 100 / 240 ms, the plunger reference, the phase and the clip progress;
+- two wrist depth images (2×72×96) from D405-like cameras on the yaw-23° mount, with a stereo noise model (`perception/wristcam_sim.py`);
+- the holder poses, pick hole and object poses, estimated **once** at the start from the head camera. The error model comes from `perception/ego_holders.py` (`tasks/*/ego/errors.npz`), ×1.25 plus extra noise.
+
+With ScanNet the observation is 991-d, because the 64-d embedding replaces 100 dims of the estimate.
+
+### Results
+
+**How to read the tables.**
+
+- Evals use `rl/eval_rr.py`, seed 123, the deterministic actor mean and full DR. Pushes are off unless the column says so.
+- Each cell is **tubes seated / press with the tip in the tube**.
+- The press needs the plunger rule and the tip inside the tube bore (`press_and_tip_ok`). It is counted out of 64 from start and out of the 40 starts that include the press otherwise.
+- Files are in `results/<run>/eval/`.
+- Columns:
+  - "From start": the whole task from frame 0.
+  - Train starts: every 1 s × 4.
+  - Cross-hole: place hole ≠ pick hole, never trained.
+  - Held-out placements: holders at 65 mm / 12°, outside the trained ±5 cm / ±10°.
+
+| Run | From start (64) | From start, pushes (64) | Train starts (72) | Cross-hole (72) | Held-out placements (72) |
+|---|---|---|---|---|---|
+| Teacher `kin_d02v3_tip_g3` | **62 / 61** | 62 / 61 | 71 / 40 | **72 / 39** | **70 / 39** |
+| `student_d02v3_ego_g3` | 59 / 61 | 59 / 61 | 70 / 39 | 68 / 39 | 62 / 35 |
+| `student_d02v3_ego_ft_g3` | 60 / 61 | 61 / 63 | 70 / 39 | 66 / 38 | 65 / 37 |
+| `student_d02v3_ego_ftmount_g3` † | 59 / 62 (nominal mount: 59 / 60) | 58 / 62 | 66 / 39 | 67 / 38 | 61 / 35 |
+| `student_d02v3_ego_scan_g3` | 59 / 60 | 59 / 60 | 71 / 40 | **8** / 39 | not run ‡ |
+
+† `ftmount` is evaluated **with** ±5 mm / ±3° mount errors, except the "nominal mount" figure.
+‡ The held-out placements lie outside the scan bank's ±5 cm range.
+
+**Wrist-camera mount errors** (from start, tubes seated of 64; `eval_rr.py --mount-rand XYZ_MM RPY_DEG`):
+
+| Student | Nominal | ±5 mm / ±3° | ±10 mm / ±6° |
+|---|---|---|---|
+| `ft` (never trained with mount errors) | 60 | 37 | 2 |
+| `ftmount` | 59 | 59 | 29 |
+
+**Desk task** (`task_d02_straight_v3_desk`). The same checkpoints were evaluated with no retraining (`eval_rr.py --task`; `results/desk_v3/eval/`).
+
+| Run | From start | From start, pushes | Train starts |
+|---|---|---|---|
+| Teacher | 60 / 60 (v3: 62 / 61) | 61 / 60 (v3: 62 / 61) | – |
+| `ftmount`, mount ±5 mm / ±3° | 57 / 62 (v3: 59 / 62) | 58 / 62 (v3: 58 / 62) | 66 / 39 (v3: 66 / 39) |
+| `ftmount`, nominal mount | 59 / 61 (v3: 59 / 60) | – | – |
+
+No new failure kinds appeared, so the desk move needs no retraining. The left forearm's clearance to the table drops from 5.8 to 4.0 cm at the place (~17.9 s).
+
+**Readings.**
+
+- The students' main failure is "tube jammed tilted ~5 mm high", plus a few tubes released high on a lagging place descent (`cause_table` in each eval json).
+- Tube slip in the hand (max over worlds): teacher 21–37 mm, `student_d02v3_ego_g3` 49–55 mm, `ft` 33–43 mm, `ftmount` up to 50 mm.
+- ScanNet locates things better than the hand-written estimator in sim. Position std: stand 1.1 / 0.6 mm, rack 0.8 / 0.8 mm, tube 2.0 / 1.3 / 0.4 mm, against 2.6–3.2 mm for the hand-written estimator. Pick-hole accuracy is 99.9 % (`results/ego_scan/scan_eval.json`).
+  - The ScanNet student fails cross-hole because the place hole is a task command that the scan cannot show. Every training pair is same-hole, and in the other students only the hole items of the estimate told them where to place.
+  - Proposed fix (not done): a place-hole command input, plus random pick/place pairs in training.
+
+### Real robot vs simulation (head camera, desk)
+
+- **Camera.** The sim head camera `ego` is the URDF's `zed_left_camera`, i.e. the ZED's **left eye**. Like the ZED, it renders z-depth.
+- **One screenshot of the real ZED viewer (11-12).** Depth was recovered from the viewer's colour bar (64 levels), then a RANSAC table-plane fit:
+
+  | | Real | Sim |
+  |---|---|---|
+  | Camera above the table | 60.4 cm (±2) | 56.8 cm |
+  | Tilt | 28.0° | 28.2° |
+  | Roll | −1.1° | −0.9° |
+  | Near table edge, ahead of the camera | 33.3 cm | 46.65 cm (v3); 33.5 cm in the desk task |
+
+  The fit was validated on a sim render to 0.05 cm. The screenshot and the ad-hoc scripts are not in the repo.
+- **Holders.** The real frame shows clutter, and the real holders differ from the sim models: a blue rack in a foam box, and a U-frame stand. ScanNet and `ego_holders.estimate` have not seen real depth yet.
+
+### Open items
+
+1. **Table height vs the robot. This is unresolved.**
+   - A tape measurement gives a real table height of 0.735 m (sim 0.720).
+   - The screenshot puts the real ZED ~5 cm higher above the floor than the URDF (≈1.339 vs 1.288 m). So either the real robot or lift is taller, or the neck was not at the sim pose (0.878, 0.017, 0.386).
+   - What matters is the arm relative to the table. In sim the shoulder (arm j1) axis is 49.9 cm above the table top, i.e. 1.219 m above the floor. **Measure the real one.**
+   - `tracker/build_demo_task.py --base-z` rebuilds the task with the robot higher (+) or lower (−) relative to the table. `--base-z 0` reproduces v3 exactly; a build takes about 1 min.
+   - Test builds:
+     - −0.015: the right-arm IK misses by up to 5.2 mm and the hand cuts the pipette by up to 6 mm, so the retarget needs adjusting.
+     - +0.036: fine.
+   - If the real lift can be set so that the shoulder axis is 49.9 cm above the table (1.234 m above the floor for a 0.735 m table), no sim change is needed.
+2. **Horizontal placement.** The user measured 0.34 m from the robot's "CoM" to the table edge; which point was meant is still unknown. In the desk task:
+   - robot CoM at the start pose: 32.0 cm;
+   - shoulder line: 35.0 cm;
+   - base origin: 37.4 cm.
+
+   A 13 cm move did not change the results, so this is low-stakes. `tracker/move_table.py --near-dx` sets it.
+3. **ScanNet student:** add a place-hole command (see Readings).
+4. **Next distillation round:**
+   - distil without pushes, then fine-tune with pushes. `rl/configs/student_d02v3_ego_ft_push.json` (it 680 → 980, pushes ramped 680–780) is ready, but its base must be a no-push distillation.
+   - `action_delay` DR;
+   - a `deploy_obs` runtime for the real robot;
+   - a raw ZED depth capture of the real setup, to test the estimators and calibrate the noise model.
+
+### Commands (d02 line)
+
+Run from the repo root. Set `WARP_CACHE_PATH` on a node. GPU lists are examples; check `nvidia-smi` first.
+
+```bash
+# task: build v3, then the desk variant
+.venv-rl-head/bin/python -I tracker/demo_to_task.py pipette_depth_02_tapir d02_straight_v3 -- --midair -0.10 0.10 0.6 30 0 0.10
+.venv-rl-head/bin/python -I tracker/move_table.py tasks/task_d02_straight_v3 tasks/task_d02_straight_v3_desk --near-dx 0.133
+#   other robot height vs the table: add  --base-z DZ  after the "--" (m; + = robot higher)
+
+# teacher (3 GPUs, resumes from <out>/latest.pt)
+GPUS="0 3 4" ./node_tracker_ddp.sh tracker/configs/kin_d02v3_tip_g3.json
+# student: DAgger from the teacher's final.pt (the config's teacher_ckpt)
+GPUS="0 3 4" ./node_distill.sh rl/configs/student_d02v3_ego.json
+# fine-tune: the base run's final.pt becomes latest.pt of the new out dir, and its state.json is copied with status "paused"
+# (distill.py resumes from the iteration count in it; max_iters / wall_hours of the ft config count from the base run's start)
+O=rl/runs/student_d02v3_ego_ftmount_g3; B=results/student_d02v3_ego_ft_g3; mkdir -p $O && cp $B/final.pt $O/latest.pt
+python3 -c "import json,sys; s=json.load(open(sys.argv[1])); s.update(status='paused', ft_from=sys.argv[1]); json.dump(s, open(sys.argv[2], 'w'), indent=1)" $B/state.json $O/state.json
+GPUS="0 3 4" ./node_distill.sh rl/configs/student_d02v3_ego_ft_mount.json
+
+# evals (from rl/; one GPU each)
+cd rl
+python -I eval_rr.py ../tracker/configs/kin_d02v3_tip_g3.json --ckpt ../results/kin_d02v3_tip_g3/final.pt --from-start 64 --out t_fromstart.json
+python -I eval_rr.py ../tracker/configs/kin_d02v3_tip_g3.json --ckpt ../results/kin_d02v3_tip_g3/final.pt --from-start 64 --perturb --out t_push.json
+python -I eval_rr.py ../tracker/configs/kin_d02v3_eval_crosshole.json --ckpt ../results/kin_d02v3_tip_g3/final.pt --repeat 4 --out t_crosshole.json
+S=../results/student_d02v3_ego_ftmount_g3/final.pt
+python -I eval_rr.py configs/student_d02v3_ego.json --student $S --from-start 64 --mount-rand 5 3 --out s_fromstart.json
+python -I eval_rr.py configs/student_d02v3_ego.json --student $S --repeat 4 --mount-rand 5 3 --out s_train.json
+python -I eval_rr.py configs/student_d02v3_ego_eval_crosshole.json --student $S --repeat 4 --mount-rand 5 3 --out s_crosshole.json
+python -I eval_rr.py configs/student_d02v3_ego_eval_holdplace.json --student $S --repeat 4 --mount-rand 5 3 --out s_holdplace.json
+python -I eval_rr.py configs/student_d02v3_ego.json --student $S --from-start 64 --task ../tasks/task_d02_straight_v3_desk --out s_desk.json
+python -I eval_rr.py configs/student_d02v3_ego_scan_eval.json --student ../results/student_d02v3_ego_scan_g3/final.pt --from-start 64 --out scan_fromstart.json
+cd ..
+
+# ScanNet: render the scan bank (~4 GB, not committed), train (~2.5 min on an RTX 4080)
+MUJOCO_GL=egl .venv-rl-head/bin/python -I perception/ego_scan_bank.py tasks/task_d02_straight_v3 rl/runs/ego_scan --n-train 40000 --procs 16
+.venv-rl-head/bin/python -I perception/train_scan_net.py rl/runs/ego_scan
+
+# pictures / videos (not committed; from rl/): see-through tube close-up of the tip, wrist-camera mount picture, policy comparison
+MUJOCO_GL=egl python render_tip_closeup.py ../tasks/task_d02_straight_v3/scene.xml tip.mp4 --ref ../tasks/task_d02_straight_v3 reference
+MUJOCO_GL=egl python render_wristcam_mount.py configs/student_d02v3_ego.json mount.png
+python -I record_rollouts.py ../tracker/configs/kin_d02v3_tip_g3.json ../results/kin_d02v3_tip_g3/final.pt runs/videos_d02v3/teacher --worlds ../results/d02v2_videos/specs.json
+```
+
+## Running on a new machine
+
+1. **Clone the branch:**
+
+   ```bash
+   git clone -b d02-v3-tip-insertion git@github.com:hyding1/vega-wuji-pipette-rl.git
+   ```
+
+   HTTPS works for a public clone; pushing needs SSH keys.
+2. **Copy the meshes.** Copy `assets/` from a machine that has them; they are not in git (see §9 Assets). Every `tasks/*/scene.xml` loads `../../assets/...`.
+3. **Make the environment:** `./node_setup.sh`.
+   - It needs `uv` and internet.
+   - It builds `.venv-rl-head` from `requirements_rl_head.txt`, with CUDA 13 wheels (driver ≥ 580), and runs the CPU unit tests.
+   - On a GPU that cannot use the cu130 torch wheel, install a matching torch build first.
+4. **Put the committed checkpoints where the configs expect them.** The `runs/` dirs are gitignored. Configs point at `tracker/runs/...` for the teacher and at `rl/runs/ego_scan/` for the scan bank (task-relative path).
+
+   ```bash
+   mkdir -p tracker/runs/kin_d02v3_tip_g3 rl/runs/ego_scan
+   cp results/kin_d02v3_tip_g3/final.pt tracker/runs/kin_d02v3_tip_g3/      # needed to distil students
+   cp results/ego_scan/{scan_net.pt,policy_bank.npz,eval_bank.npz} rl/runs/ego_scan/   # needed for the ScanNet student
+   ```
+5. **Check it works.** Run one eval from the commands above. For example, the teacher from start should give 62 tubes seated of 64.
+6. **The demo download.** `demo_to_task.py` fetches from `https://huggingface.co/datasets/ytung/pipette-tasks`, about 30 MB, into `~/Projects/datasets/pipette-tasks`. It is needed only to rebuild a task: the built tasks are committed.
+
+**What is committed per run** (`results/<run>/`):
+
+- `final.pt`;
+- `state.json`, which holds the resolved config;
+- `progress.jsonl`;
+- `eval/*.json`.
+
+**What is not committed:** intermediate checkpoints, logs, videos and figures, the scan bank's training renders (`train.npz` and `val.npz`, regenerated by `ego_scan_bank.py`), and the v1/v2 d02 checkpoints, which are still on the node.
 
 ## 1. Pipeline layers
 
@@ -35,11 +253,11 @@ Everything here is **simulation**. Nothing has run on the real robot yet. Each n
 |---|---|---|---|
 | 1 | Human video → **kinematic reference** | Reconstruction, retargeting and IK to Vega-U + Wuji. No physics. | Not included. `tasks/task_kin_*` are built from it (tracker line only). |
 | 2 | **Physics demo** (MuJoCo) | DAID ("do-as-I-do") sampling MPC tracks layer 1 in MuJoCo. Its executed controls are a physically valid demo ("T1_k", seed 0). | Not included. Its executed states and ctrl are exported into `tasks/task_T1k_*/reference.npz` (`rl/export_task.py`). Contact labels come from it via `rl/contact_ref.py`. |
-| 3 | **Residual-PPO teacher** (MuJoCo Warp, GPU) | The policy adds a joint-space residual on top of layer 2's executed ctrl, under heavy randomisation. | `rl/`, `rl/configs/`, `results/<run>/final.pt`, `videos/`. Rounds R1–R3 (§3), tc line (§4). |
-| 4 | **DAgger student** (deployable observations) | `rl/distill.py`. Only plumbing-tested so far. | `results/student_plumb/` |
+| 3 | **Residual-PPO teacher** (MuJoCo Warp, GPU) | The policy adds a joint-space residual on top of layer 2's executed ctrl, under heavy randomisation. | `rl/`, `rl/configs/`, `results/<run>/final.pt`. Rounds R1–R3 (§3), tc line (§4). |
+| 4 | **DAgger student** (deployable observations) | `rl/distill.py`, data-parallel via `node_distill.sh`. On the T1k line only plumbing-tested. On the d02 line: students with wrist depth cameras and the head-camera estimate (see [Current work](#current-work-d02-demo-line)). | `results/student_plumb/`, `results/student_d02v3_ego_*` |
 | — | Tracker (WIP) | One RL policy for any kinematic reference, with no per-video MPC. | `tracker/`. KA / KB (§4) are residual teachers on the kinematic reference, with no MPC base: `results/kin_tc*_s5/`. |
-| 1′ | Retargeted RGB-D demo (HF `ytung/pipette-tasks`) → **task** | One command: robot square to the table, ground-truth holders, reachable continuous arm paths, checks, training configs. See [docs/DEMO_TO_TASK.md](docs/DEMO_TO_TASK.md). | `tracker/demo_to_task.py`, `tracker/build_demo_task.py`, `tasks/task_d02_straight_v2/` (smooth extraction; teacher `kin_d02v2_ft_g3`, fine-tuned from `kin_d02_s5_g3`). |
-| 1″ | Head-camera (ego) estimate of the holders and the tube | One depth frame at the start → stand / rack pose, tube position and pick hole; its error model drives the student's holder measurement. See [docs/EGO_HOLDERS.md](docs/EGO_HOLDERS.md). | `perception/ego_holders.py`, `tasks/task_d02_straight_v2/ego/`, student config `rl/configs/student_d02v2_ego.json`. |
+| 1′ | Retargeted RGB-D demo (HF `ytung/pipette-tasks`) → **task** | One command: robot square to the table, ground-truth holders, reachable continuous arm paths, checks, training configs. See [docs/DEMO_TO_TASK.md](docs/DEMO_TO_TASK.md). | `tracker/demo_to_task.py`, `tracker/build_demo_task.py` (`--base-z`: robot height vs the table), `tracker/move_table.py` (desk edge), `tasks/task_d02_straight{,_v2,_v3,_v3_desk}/`. Teacher `results/kin_d02v3_tip_g3/`. |
+| 1″ | Head-camera (ego) estimate of the holders and the tube | One depth frame at the start → stand / rack pose, tube position and pick hole; its error model drives the student's holder measurement. See [docs/EGO_HOLDERS.md](docs/EGO_HOLDERS.md). Learned alternative: ScanNet on the same depth crop. | `perception/ego_holders.py`, `tasks/task_d02_straight_v3/ego/`; `perception/ego_scan_bank.py`, `perception/train_scan_net.py`, `results/ego_scan/`. |
 
 ## 2. RL setup (teacher, layer 3)
 
@@ -377,7 +595,7 @@ The 12 never-trained pairs are every pick from r1c0 (10 pairs) plus the held-out
    - **+30°:** 4 failures at the pipette return.
 5. **Tube entering the rack**, around 20.6 s: 10 failures in `holes`, 9 in `standyaw`. The tube is lost or jams tilted.
 
-Clips of each case are in `videos/kin_failures/` (§8).
+Clips of each case can be rendered from the specs in `results/kin_tc_s5/vary/` (§8; videos are not committed).
 
 ### Proposed next round (not implemented)
 
@@ -417,7 +635,9 @@ The student sees no object state after the start and no contacts.
 - Student: MLP 512-256-128 (ELU) with a running normaliser that freezes after 5e6 samples.
 - Optimiser: Adam, learning rate 1e-3 → 2e-4.
 
-**Status:** only a plumbing test, on an early task E1 with a smoke teacher (`rl/configs/rr_student_plumb.json`; task E1 not included). In `results/student_plumb/eval_student_plumb.json` the student reached the end in 14 of 20 runs. The deployable student has not been distilled from R3B yet.
+**Status on the T1k line:** only a plumbing test, on an early task E1 with a smoke teacher (`rl/configs/rr_student_plumb.json`; task E1 not included). In `results/student_plumb/eval_student_plumb.json` the student reached the end in 14 of 20 runs. No student was distilled from R3B.
+
+**The d02 line** has full students: wrist depth cameras, the head-camera estimate, hand pushes, data-parallel on 3 GPUs. See [Current work](#current-work-d02-demo-line).
 
 ## 7. Tracker (work in progress)
 
@@ -457,33 +677,40 @@ Their evals use `eval_rr.py` with the full DR. They are not comparable with the 
 
 ## 8. Videos, rendering and perception
 
-**Videos.** Unless noted, these are MuJoCo renders of recorded rollouts (`rl/record_rollouts.py` → `rl/render_compare.py`) at 50 fps.
+**Videos and figures are not in the repo.** Since 11-12, `.gitignore` excludes videos, images and logs. The earlier clips were removed from the tree in commit `65bc26e`, but git history still holds them. Regenerate any of them with the scripts.
+
+They are MuJoCo renders of recorded rollouts (`rl/record_rollouts.py` → `rl/render_compare.py`) at 50 fps:
 
 - Each row shows one policy: overview | right hand (pipette) | left hand (tube).
 - The close-up cameras follow a smoothed wrist-object midpoint, so shake shows against a steady camera.
 - Every compared policy gets the same world spec and DR seed.
 
-| Path | What |
-|---|---|
-| `videos/*.mp4` (top level) | R2 / R3 videos (§3) |
-| `videos/reference_layers/` | Layer 1 (kinematic reference) vs layer 2 (MPC physics demo), replayed with no policy. Full clip, plus press 8–12 s and return 17–24 s at 0.5×. |
-| `videos/caps_rounds/` | R3B vs tcs1 (CAPS 0.1) vs tcs5 (CAPS 0.5), worlds 2 and 3, and carry at 0.25×. `ee_path_world2.png`: wrist paths vs the reference (`rl/ee_path.py`). |
-| `videos/kin_ref_final/` | tcs1 (MPC reference) vs KA vs KB (kinematic reference), final checkpoints, worlds 1–3, and press at 0.5×. Wrist-path figure. |
-| `videos/kin_failures/` | The 12 KA failure cases of §5, each labelled with its world spec and fail reason, plus all 12 in one montage at 0.5×. |
-| `videos/blender/KA_final_world2/` | KA final, world 2, replayed in a Blender lab scene: robot head camera, fixed overview, and both side by side. |
+The kinds that were made:
 
-**Not committed:**
+- the R2 / R3 rounds;
+- layer 1 vs layer 2 references (`render_compare.py --ref`);
+- CAPS rounds and wrist paths (`rl/ee_path.py`);
+- KA / KB vs tcs1;
+- the 12 KA failure cases of §5;
+- a Blender replay (below);
+- for d02, the v3 reference and teacher;
+- a see-through tube close-up of the tip (`rl/render_tip_closeup.py`);
+- the wrist-camera mount (`rl/render_wristcam_mount.py`).
 
-- per-policy single clips, which the `compare_*` videos already show side by side;
-- the 175M-step midpoint renders;
-- `.blend` files, which embed the robot and lab meshes.
+`.blend` files are never committed, because they embed the robot and lab meshes.
 
 **Rendering in Blender** (render only, nothing is simulated):
 
 - `render/mj_to_blender.py` exports a recorded rollout for Blender: visual meshes, per-frame body poses, furniture anchors and the head camera frame. It handles only worlds with zero holder offsets.
 - `render/blender_replay.py` runs inside Blender 5.2. It places the exported robot and objects in a lab scene ("LIDAR Environment.blend", not included) and renders the head and overview cameras. The head camera's field of view is a placeholder until the real intrinsics are known.
 
-**Perception bench tools** (not used by the RL yet):
+**Perception used by the d02 students** (simulation):
+
+- `perception/wristcam_sim.py`: the wrist depth cameras and their stereo noise model;
+- `perception/ego_holders.py`: the head-camera holder/tube estimate and its error model;
+- `perception/ego_scan_bank.py` and `train_scan_net.py`: ScanNet.
+
+**Perception bench tools:**
 
 - `perception/record_realsense.py` records a RealSense (D435i, D405): colour video, raw metric depth per frame, and optionally a rosbag.
 - `perception/d405_viewer.py` is a live D405 depth viewer.
@@ -559,4 +786,4 @@ MUJOCO_GL=egl python render_compare.py ../tasks/task_kin_noprior_press/scene.xml
 
 **Credits.** The tracking reward structure, termination thresholds and default residual scales follow Yi-Shiuan Tung's residual-PPO env (g1-wuji-retargeting). The code here is our own GPU reimplementation. Jiming Ren proposed T1–T3. DAID (do-as-I-do) produced the physics demo.
 
-**Files.** See `MANIFEST.md`, which lists every file with its source and size, and `AUDIT.md`. `docs/` holds the original plan and results notes, with node and host details scrubbed.
+**Files.** See `MANIFEST.md`, which lists every file with its source and size (its table covers the files up to the 11-10 commit; later files are listed at its end), and `AUDIT.md`. `docs/` holds the original plan and results notes, with node and host details scrubbed.

@@ -580,6 +580,24 @@ def holder_init(env):
         env.x_ego = {'E': torch.as_tensor(z['errors'], dtype=torch.float32, device=dev)*float(mm.get('scale', 1.)), 'j': torch.zeros(env.num_envs, dtype=torch.long, device=dev),
                      'xy': float(mm.get('extra_xy_mm', 0.))*1e-3, 'yaw': np.radians(float(mm.get('extra_yaw_deg', 0.))), 'tube': float(mm.get('extra_tube_mm', 0.))*1e-3,
                      'pxy': float(mm.get('pipette_xy_mm', 0.))*1e-3, 'pyaw': np.radians(float(mm.get('pipette_yaw_deg', 0.)))}
+    # (11-12) extras.student.scan = {"bank": policy_bank.npz (task-relative or absolute; perception/train_scan_net.py), "obs": "embedding" |
+    # "estimate"}: the "initial head-depth image only" student. Per episode one bank row = one rendered start scene: its TRUE holder poses,
+    # pick hole and object slack become the episode's scene; the scan network's PREDICTION (from that scene's noisy head-camera depth) is the
+    # robot's holder estimate (re-anchors the arm command, as the hand-written estimate did). obs "embedding": the actor sees the scan
+    # network's 64-d embedding INSTEAD of the measured poses / re-anchoring delta / re-anchored wrist targets; "estimate": the old inputs,
+    # computed from the network's prediction. Rows are limited to pick holes of the config's hole_pairs.
+    sc_ = (env.xcfg.get('student') or {}).get('scan'); env.x_scan = None
+    if sc_:
+        bp = Path(sc_['bank']); bp = bp if bp.is_absolute() else env.task/bp; zb = np.load(bp); hn = [str(x) for x in zb['holes']]
+        pairs = env.x_holes['pairs'] if env.x_holes is not None else None
+        pair_of = {a: i for i, (a, b) in reversed(list(enumerate(pairs)))} if pairs else {}
+        ok = np.array([hn[h] in pair_of for h in zb['hole']]) if pairs else np.ones(len(zb['hole']), bool)
+        Tb = lambda k: torch.as_tensor(np.asarray(zb[k])[ok], dtype=torch.float32, device=dev)
+        env.x_scan = {'stand': Tb('stand'), 'rack': Tb('rack'), 'pstand': Tb('pred_stand'), 'prack': Tb('pred_rack'), 'ptube': Tb('pred_tube'),
+                      'emb': Tb('emb'), 'pip_slack': Tb('pip_slack'), 'tube_slack': Tb('tube_slack'), 'n': int(ok.sum()), 'obs': sc_.get('obs', 'embedding'),
+                      'pair': torch.as_tensor([pair_of.get(hn[h], 0) for h in zb['hole'][ok]], dtype=torch.long, device=dev),
+                      'j': torch.zeros(env.num_envs, dtype=torch.long, device=dev)}
+        assert env.x_scan['n'] > 0, 'scan bank has no rows for these hole pairs'
     env.x_arm_side = {'L': torch.as_tensor([i for i, n in enumerate(env.action_names) if n.startswith('L_arm')], device=dev),
                       'R': torch.as_tensor([i for i, n in enumerate(env.action_names) if n.startswith('R_arm')], device=dev)}
     env.x_carrier_q = torch.as_tensor([int(m.jnt_qposadr[m.joint(j).id]) for j in ('pc_x', 'pc_y', 'pc_z', 'pc_rx', 'pc_ry', 'pc_rz')], device=dev)
@@ -639,15 +657,23 @@ def holder_reset(env, ids, frames):
     if not getattr(env, 'x_hold', None) or not len(ids): return
     n = len(ids); dev = env.device; gpos, gquat = env.mf['geom_pos'], env.mf['geom_quat']; XE = getattr(env, 'x_ego', None)
     if XE is not None: XE['j'][ids] = torch.randint(len(XE['E']), (n,), device=dev, generator=env.gen)
+    XS = getattr(env, 'x_scan', None)
+    if XS is not None:
+        XS['j'][ids] = torch.randint(XS['n'], (n,), device=dev, generator=env.gen); js = XS['j'][ids]
     for name, h in env.x_hold.items():
         h['d'][ids] = h['xy']*(2*torch.rand(n, 2, device=dev, generator=env.gen)-1); h['th'][ids] = h['yaw']*(2*torch.rand(n, device=dev, generator=env.gen)-1)
         if name == 'rack' and getattr(env, 'x_holes', None) is not None:
             X = env.x_holes; X['idx'][ids] = torch.randint(len(X['pairs']), (n,), device=dev, generator=env.gen)
             fp = getattr(env, 'x_hole_fixed', None)
             if fp is not None: X['idx'][ids] = fp[ids]
+        if XS is not None:   # (11-12) the bank row's scene
+            h['d'][ids] = XS[name][js, :2]; h['th'][ids] = XS[name][js, 2]
+            if name == 'rack' and getattr(env, 'x_holes', None) is not None: env.x_holes['idx'][ids] = XS['pair'][js]
         fx = getattr(env, 'x_hold_fixed', None)   # diagnostics only: per-world fixed offsets {name: (d (N, 2) m, th (N,) rad)}
         if fx and name in fx: h['d'][ids] = fx[name][0][ids]; h['th'][ids] = fx[name][1][ids]
-        if XE is not None:   # (11-11) head-camera estimate: a row of the estimator's error model (+ the extra randomisation)
+        if XS is not None:   # (11-12) the scan network's prediction for this row's scene
+            h['dm'][ids] = XS['p'+name][js, :2]; h['thm'][ids] = XS['p'+name][js, 2]
+        elif XE is not None:   # (11-11) head-camera estimate: a row of the estimator's error model (+ the extra randomisation)
             e = XE['E'][XE['j'][ids]][:, (0 if name == 'stand' else 3):][:, :3]
             h['dm'][ids] = h['d'][ids]+e[:, :2]+XE['xy']*torch.randn(n, 2, device=dev, generator=env.gen); h['thm'][ids] = h['th'][ids]+e[:, 2]+XE['yaw']*torch.randn(n, device=dev, generator=env.gen)
         else:
@@ -662,6 +688,15 @@ def holder_reset(env, ids, frames):
         gx, gm = env.wp.to_torch(env.d.geom_xpos), env.wp.to_torch(env.d.geom_xmat)
         gx[ids[:, None], g[None]] = gpos[ids[:, None], g[None]]
         gm[ids[:, None], g[None]] = _qmat(gquat[ids[:, None], g[None]]).reshape(gm[ids[:, None], g[None]].shape)
+    if XS is not None:   # (11-12) objects still in their holder: the bank row's slack (the scan shows it) instead of the DR draw
+        qr = env.qpos_ref[frames]
+        for sd, key in (('right', 'pip_slack'), ('left', 'tube_slack')):
+            sel = frames < env.f_pre[sd]
+            if not bool(sel.any()): continue
+            w = ids[sel]; a = env.obj_q[sd]; sl = XS[key][js[sel]]
+            env.qpos[w, a:a+2] = qr[sel, a:a+2]+sl[:, :2]; env.qpos[w, a+2] = qr[sel, a+2]
+            qz = torch.stack([torch.cos(sl[:, 2]/2), torch.zeros_like(sl[:, 2]), torch.zeros_like(sl[:, 2]), torch.sin(sl[:, 2]/2)], -1)
+            env.qpos[w, a+3:a+7] = _qmul(qz, qr[sel, a+3:a+7])
     # consistent start: arms by IK toward the moved targets, objects rigidly with their holder / hand, carrier with the pipette
     Hs = {nm: holder_T(env, nm, frames, ids) for nm in env.x_hold}
     q = env.qpos[ids]; qa = env.qpos_ref[frames][:, env.aq]
@@ -703,7 +738,10 @@ def student_init(env):
     if getattr(env, 'actor_layout', None) is not None:
         o = env.actor_dim
         extra = [(f'wrist_ref_rel_{s}[t+{c}] (pos 3, rot cols 6)', 9) for c in WRIST_REF_OFFSETS for s in ('right', 'left')] if sc.get('wrist_ref') else []
-        for name, n in STUDENT_PARTS+[('holder_reanchor_arm_cmd_delta', len(env.x_arm))]+extra:
+        parts = STUDENT_PARTS+[('holder_reanchor_arm_cmd_delta', len(env.x_arm))]+extra
+        XS = getattr(env, 'x_scan', None)
+        if XS is not None and XS['obs'] == 'embedding': parts = [('scan_embedding (head depth at the start; perception/train_scan_net.py)', int(XS['emb'].shape[1]))]
+        for name, n in parts:
             env.actor_layout.append({'name': name, 'start': o, 'size': n}); o += n
         env.actor_dim = o
     depth_init(env)
@@ -721,7 +759,14 @@ def measure(env, ids, frames):
     q = env.qpos[ids]; qr = env.qpos_ref[frames]; out = []; XE = getattr(env, 'x_ego', None) if getattr(env, 'x_hold', None) else None
     for s in ('right', 'left'):
         a = env.x_objq[s]; dp = q[:, a:a+3]-qr[:, a:a+3]; dy = _yaw_quat(q[:, a+3:a+7])-_yaw_quat(qr[:, a+3:a+7]); dy = torch.atan2(torch.sin(dy), torch.cos(dy))
-        if XE is None: out += [dp+sp*torch.randn(n, 3, device=dev, generator=g), (dy+sy*torch.randn(n, device=dev, generator=g))[:, None]]
+        XS = getattr(env, 'x_scan', None)
+        if XS is not None and s == 'right':   # (11-12) the stand prediction applied to the pipette (its slack in the stand is not observed)
+            h = env.x_hold['stand']; one = torch.ones(n, device=dev)
+            Tm = _H(one, h['dm'][ids], h['thm'][ids], h['c'])@torch.linalg.inv(_H(one, h['d'][ids], h['th'][ids], h['c']))
+            pm = (Tm[:, :3, :3]@q[:, a:a+3, None])[..., 0]+Tm[:, :3, 3]; out += [pm-qr[:, a:a+3], (dy+h['thm'][ids]-h['th'][ids])[:, None]]
+        elif XS is not None:                  # (11-12) the predicted tube position; spin not observed
+            out += [XS['ptube'][XS['j'][ids]]-qr[:, a:a+3], torch.zeros(n, 1, device=dev)]
+        elif XE is None: out += [dp+sp*torch.randn(n, 3, device=dev, generator=g), (dy+sy*torch.randn(n, device=dev, generator=g))[:, None]]
         elif s == 'right':   # (11-11) pipette = the stand estimate applied to it (+ its unobserved slack in the stand)
             h = env.x_hold['stand']; one = torch.ones(n, device=dev)
             Tm = _H(one, h['dm'][ids], h['thm'][ids], h['c'])@torch.linalg.inv(_H(one, h['d'][ids], h['th'][ids], h['c']))
@@ -741,6 +786,8 @@ WRIST_REF_OFFSETS = (0, 2, 5, 12)   # = vega_res_env.OFFSETS (control steps)
 def student_parts(env):
     if getattr(env, 'x_meas', None) is None: return []
     depth_update(env)   # (11-10) renders every cfg.every calls; the image lives in env.x_depth['obs'], not in the vector
+    XS = getattr(env, 'x_scan', None)
+    if XS is not None and XS['obs'] == 'embedding': return [XS['emb'][XS['j']]]
     hd = env.x_hdelta[:, env.x_arm] if getattr(env, 'x_hold', None) else torch.zeros(env.num_envs, len(env.x_arm), device=env.device)
     out = [env.x_meas, hd]
     if env.xcfg['student'].get('wrist_ref'):
@@ -826,7 +873,11 @@ def gate_reset(env, ids):
 DEPTH_DEFAULT = dict(res=[64, 48], every=2, f256=156., baseline=.018, zmin=.044, mount=[[-.005, .065, .06], [-.01, .045, -.08]],
                      noise_lo=dict(white=.1, corr=.15, edge_fat=.5, edge_drop=.5, holes=.10, obj_holes=.10, speckle=.01, scale=.005, extr=[1., .5]),
                      noise_hi=dict(white=.25, corr=.4, edge_fat=.5, edge_drop=.6, holes=.35, obj_holes=.25, speckle=.03, scale=.01, extr=[2., 1.]),
-                     aux_inhand=1.)
+                     aux_inhand=1., mount_rand=None)
+# (11-12) mount_rand = {'xyz_mm': [x, y, z], 'rpy_deg': [r, p, y]} (None = off): per episode and per camera, an installation offset of the
+# camera on top of the small extr error above: position uniform in +-xyz_mm along the WRIST axes (x thumb / little finger, y palm, z forearm),
+# rotation uniform in +-rpy_deg about the camera's own axes (roll = about the viewing axis, pitch = about the image horizontal (tilt),
+# yaw = about the image vertical (pan)), composed Rz(roll) Rx(pitch) Ry(yaw) in the MuJoCo camera frame. The student is not told the offset.
 DEPTH_CAMS = ('wristcam_right', 'wristcam_left')
 
 
@@ -875,6 +926,7 @@ def depth_init(env):
                        lo={k: torch.tensor(v, dtype=torch.float32, device=dev) for k, v in lo.items()},
                        hi={k: torch.tensor(v, dtype=torch.float32, device=dev) for k, v in hi.items()},
                        obs=torch.zeros(N, 2, H, W, dtype=torch.int16, device=dev), pend=torch.zeros(N, 2, H, W, dtype=torch.int16, device=dev),
+                       Rwc=torch.tensor(np.stack([_quat2mat(m.cam_quat[m.camera(n).id]) for n in DEPTH_CAMS]), dtype=torch.float32, device=dev),
                        alpha=torch.zeros(N, device=dev), scale=torch.zeros(N, device=dev),
                        Re=torch.eye(3, device=dev).repeat(N, 2, 1, 1), te=torch.zeros(N, 2, 3, device=dev))
 
@@ -895,7 +947,26 @@ def depth_reset(env, ids):
         a = torch.randn(n, 3, device=dev, generator=g); a = a/a.norm(dim=1, keepdim=True); th = torch.deg2rad(ex[:, 1])
         Kx = torch.zeros(n, 3, 3, device=dev); Kx[:, 0, 1], Kx[:, 0, 2], Kx[:, 1, 2] = -a[:, 2], a[:, 1], -a[:, 0]; Kx = Kx-Kx.transpose(1, 2)
         X['Re'][ids, j] = torch.eye(3, device=dev)+torch.sin(th)[:, None, None]*Kx+(1-torch.cos(th))[:, None, None]*(Kx@Kx)
+    mr = X['cfg'].get('mount_rand')
+    if mr:   # (11-12) installation offset (see DEPTH_DEFAULT): te / Re are in the nominal camera frame (applied in depth_update)
+        xyz = torch.tensor(mr.get('xyz_mm', [0, 0, 0]), dtype=torch.float32, device=dev)*1e-3
+        rpy = torch.deg2rad(torch.tensor(mr.get('rpy_deg', [0, 0, 0]), dtype=torch.float32, device=dev))
+        for j in range(2):
+            dp = (2*torch.rand(n, 3, device=dev, generator=g)-1)*xyz                       # wrist frame
+            X['te'][ids, j] += dp@X['Rwc'][j]                                               # -> camera frame (Rwc^T dp)
+            r_, p_, y_ = ((2*torch.rand(n, 3, device=dev, generator=g)-1)*rpy).unbind(1)
+            X['Re'][ids, j] = _rot(2, r_)@_rot(0, p_)@_rot(1, y_)@X['Re'][ids, j]
     X['obs'][ids] = 0; X['pend'][ids] = 0
+
+
+def _rot(ax, th):   # (n, 3, 3) rotations about axis ax (0 x, 1 y, 2 z) by th (n,)
+    c, s_ = torch.cos(th), torch.sin(th); R = torch.zeros(len(th), 3, 3, device=th.device); i, k = [a for a in range(3) if a != ax]
+    R[:, ax, ax] = 1; R[:, i, i] = c; R[:, k, k] = c; R[:, i, k] = -s_; R[:, k, i] = s_; return R
+
+
+def _quat2mat(q):
+    import mujoco
+    R = np.zeros(9); mujoco.mju_quat2Mat(R, np.asarray(q, float)); return R.reshape(3, 3)
 
 
 def _blur(x, KS):

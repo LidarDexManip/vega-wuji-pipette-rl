@@ -409,3 +409,252 @@ Sizes for README.md, MANIFEST.md and AUDIT.md are as of writing. Updated 2026-11
 | `videos/reference_layers/reference_layers_return_17-24s_slow2x.mp4` | `(new: rl/render_compare.py --ref, reference replay, no policy)` | 4.9 MB |  |
 
 392 files.
+
+## Changes on branch `d02-v3-tip-insertion` (2026-11-10 … 11-12)
+
+Everything below is ours (written or generated in this repo). Tasks under `tasks/task_d02_*` are built by `tracker/demo_to_task.py` from the HF dataset `ytung/pipette-tasks`; `results/` holds final checkpoints and eval jsons copied from the GPU node (node paths scrubbed). Sizes are as of this commit.
+
+| File | Change | Size |
+|---|---|---|
+| `.gitignore` | updated | 523 B |
+| `README.md` | updated | 55.1 KB |
+| `docs/DEMO_TO_TASK.md` | new | 12.4 KB |
+| `docs/EGO_HOLDERS.md` | new | 5.1 KB |
+| `node_distill.sh` | new | 1.2 KB |
+| `node_tracker_ddp.sh` | new | 1.2 KB |
+| `perception/bag_export.py` | new | 6.9 KB |
+| `perception/ego_holders.py` | new | 28.1 KB |
+| `perception/ego_scan_bank.py` | new | 4.5 KB |
+| `perception/ffs_bag.py` | new | 11.8 KB |
+| `perception/ffs_compare.py` | updated | 16.0 KB |
+| `perception/record_realsense.py` | updated | 22.9 KB |
+| `perception/train_scan_net.py` | new | 8.2 KB |
+| `perception/wristcam_axial.py` | new | 7.3 KB |
+| `perception/wristcam_sim.py` | new | 25.7 KB |
+| `perception/wristcam_track.py` | new | 8.7 KB |
+| `results/d02v2_videos/specs.json` | new | 951 B |
+| `results/desk_v3/eval/student_fromstart.json` | new | 53.6 KB |
+| `results/desk_v3/eval/student_fromstart_nominal.json` | new | 53.5 KB |
+| `results/desk_v3/eval/student_fromstart_push.json` | new | 54.0 KB |
+| `results/desk_v3/eval/student_train_starts.json` | new | 57.7 KB |
+| `results/desk_v3/eval/teacher_fromstart.json` | new | 53.9 KB |
+| `results/desk_v3/eval/teacher_fromstart_push.json` | new | 53.8 KB |
+| `results/ego_scan/eval_bank.npz` | new | 746.0 KB |
+| `results/ego_scan/policy_bank.npz` | new | 7.3 MB |
+| `results/ego_scan/scan_eval.json` | new | 14.4 KB |
+| `results/ego_scan/scan_net.pt` | renamed from `videos/pipette_vega_wuji_R3_reference_vs_R3B_hands_closeup_with_MPC_50fps.mp4` | 13.2 MB |
+| `results/kin_d02v3_tip_g3/eval/contact.json` | new | 1002 B |
+| `results/kin_d02v3_tip_g3/eval/fromstart.json` | new | 53.7 KB |
+| `results/kin_d02v3_tip_g3/eval/fromstart_push.json` | new | 53.9 KB |
+| `results/kin_d02v3_tip_g3/eval/holdout.json` | new | 56.9 KB |
+| `results/kin_d02v3_tip_g3/eval/holdplace.json` | new | 52.0 KB |
+| `results/kin_d02v3_tip_g3/eval/train_starts.json` | new | 57.1 KB |
+| `results/kin_d02v3_tip_g3/final.pt` | renamed from `videos/kin_ref_final/compare_world2.mp4` | 20.5 MB |
+| `results/kin_d02v3_tip_g3/progress.jsonl` | new | 841.3 KB |
+| `results/kin_d02v3_tip_g3/state.json` | new | 9.0 KB |
+| `results/student_d02v3_ego_ft_g3/eval/fromstart.json` | new | 53.5 KB |
+| `results/student_d02v3_ego_ft_g3/eval/fromstart_mount10_6.json` | new | 52.7 KB |
+| `results/student_d02v3_ego_ft_g3/eval/fromstart_mount5_3.json` | new | 54.7 KB |
+| `results/student_d02v3_ego_ft_g3/eval/fromstart_push.json` | new | 53.9 KB |
+| `results/student_d02v3_ego_ft_g3/eval/holdout.json` | new | 57.1 KB |
+| `results/student_d02v3_ego_ft_g3/eval/holdplace.json` | new | 52.3 KB |
+| `results/student_d02v3_ego_ft_g3/eval/train_starts.json` | new | 57.1 KB |
+| `results/student_d02v3_ego_ft_g3/final.pt` | renamed from `videos/caps_rounds/compare_world3.mp4` | 11.7 MB |
+| `results/student_d02v3_ego_ft_g3/progress.jsonl` | new | 99.7 KB |
+| `results/student_d02v3_ego_ft_g3/state.json` | new | 7.7 KB |
+| `results/student_d02v3_ego_ftmount_g3/eval/fromstart.json` | new | 53.9 KB |
+| `results/student_d02v3_ego_ftmount_g3/eval/fromstart_mount10_6.json` | new | 55.2 KB |
+| `results/student_d02v3_ego_ftmount_g3/eval/fromstart_nominal.json` | new | 53.6 KB |
+| `results/student_d02v3_ego_ftmount_g3/eval/fromstart_push.json` | new | 54.0 KB |
+| `results/student_d02v3_ego_ftmount_g3/eval/holdout.json` | new | 57.5 KB |
+| `results/student_d02v3_ego_ftmount_g3/eval/holdplace.json` | new | 52.5 KB |
+| `results/student_d02v3_ego_ftmount_g3/eval/train_starts.json` | new | 57.7 KB |
+| `results/student_d02v3_ego_ftmount_g3/final.pt` | renamed from `videos/pipette_vega_wuji_RL_R3B_nominal_DRon_vs_DRoff_50fps.mp4` | 11.7 MB |
+| `results/student_d02v3_ego_ftmount_g3/progress.jsonl` | new | 99.6 KB |
+| `results/student_d02v3_ego_ftmount_g3/state.json` | new | 8.3 KB |
+| `results/student_d02v3_ego_g3/eval/fromstart.json` | new | 53.6 KB |
+| `results/student_d02v3_ego_g3/eval/fromstart_push.json` | new | 53.8 KB |
+| `results/student_d02v3_ego_g3/eval/holdout.json` | new | 57.1 KB |
+| `results/student_d02v3_ego_g3/eval/holdplace.json` | new | 52.2 KB |
+| `results/student_d02v3_ego_g3/eval/train_starts.json` | new | 56.9 KB |
+| `results/student_d02v3_ego_g3/final.pt` | new | 11.7 MB |
+| `results/student_d02v3_ego_g3/progress.jsonl` | new | 339.3 KB |
+| `results/student_d02v3_ego_g3/state.json` | new | 7.2 KB |
+| `results/student_d02v3_ego_scan_g3/eval/fromstart.json` | new | 53.6 KB |
+| `results/student_d02v3_ego_scan_g3/eval/fromstart_push.json` | new | 53.5 KB |
+| `results/student_d02v3_ego_scan_g3/eval/holdout.json` | new | 59.9 KB |
+| `results/student_d02v3_ego_scan_g3/eval/train_starts.json` | new | 57.2 KB |
+| `results/student_d02v3_ego_scan_g3/final.pt` | renamed from `videos/reference_layers/reference_layers_full.mp4` | 11.5 MB |
+| `results/student_d02v3_ego_scan_g3/progress.jsonl` | new | 338.5 KB |
+| `results/student_d02v3_ego_scan_g3/state.json` | new | 6.7 KB |
+| `results/wristcam/axial_stats.json` | new | 549.5 KB |
+| `results/wristcam/noise_summary.json` | new | 82.3 KB |
+| `results/wristcam/summary.json` | new | 72.7 KB |
+| `results/wristcam/track/track.json` | new | 147.5 KB |
+| `rl/configs/student_d02v2_ego.json` | new | 4.2 KB |
+| `rl/configs/student_d02v2_ego_eval_crosshole.json` | new | 2.8 KB |
+| `rl/configs/student_d02v2_ego_eval_holdplace.json` | new | 3.3 KB |
+| `rl/configs/student_d02v2_ego_eval_perfect.json` | new | 4.4 KB |
+| `rl/configs/student_d02v2_ego_ft.json` | new | 4.6 KB |
+| `rl/configs/student_d02v2_ego_ft2.json` | new | 4.8 KB |
+| `rl/configs/student_d02v3_ego.json` | new | 3.9 KB |
+| `rl/configs/student_d02v3_ego_eval_crosshole.json` | new | 3.1 KB |
+| `rl/configs/student_d02v3_ego_eval_holdplace.json` | new | 3.7 KB |
+| `rl/configs/student_d02v3_ego_ft.json` | new | 4.4 KB |
+| `rl/configs/student_d02v3_ego_ft_mount.json` | new | 4.9 KB |
+| `rl/configs/student_d02v3_ego_ft_push.json` | new | 3.7 KB |
+| `rl/configs/student_d02v3_ego_scan.json` | new | 4.4 KB |
+| `rl/configs/student_d02v3_ego_scan_eval.json` | new | 3.4 KB |
+| `rl/configs/student_d02v3_ego_scan_eval_crosshole.json` | new | 3.2 KB |
+| `rl/configs/student_kin_tc_s5.json` | new | 6.4 KB |
+| `rl/configs/student_kin_tc_s5_depth.json` | new | 7.4 KB |
+| `rl/configs/student_kin_tc_s5_depth_eval_holdout.json` | new | 3.3 KB |
+| `rl/configs/student_kin_tc_s5_depth_eval_holdplace.json` | new | 6.7 KB |
+| `rl/configs/student_kin_tc_s5_eval_holdout.json` | new | 2.5 KB |
+| `rl/configs/student_kin_tc_s5_eval_holdplace.json` | new | 6.0 KB |
+| `rl/distill.py` | updated | 16.1 KB |
+| `rl/eval_contact_stability.py` | updated | 6.8 KB |
+| `rl/eval_rr.py` | updated | 34.8 KB |
+| `rl/record_rollouts.py` | updated | 8.7 KB |
+| `rl/render_compare.py` | updated | 11.7 KB |
+| `rl/render_tip_closeup.py` | new | 6.1 KB |
+| `rl/render_wristcam_mount.py` | new | 12.5 KB |
+| `rl/reward_breakdown.py` | updated | 5.3 KB |
+| `rl/vega_extras.py` | updated | 78.3 KB |
+| `rl/vega_res_env.py` | updated | 41.0 KB |
+| `tasks/task_d02_straight/build_report.json` | new | 4.4 KB |
+| `tasks/task_d02_straight/contact_ref.json` | new | 526 B |
+| `tasks/task_d02_straight/contact_ref.npz` | new | 693.6 KB |
+| `tasks/task_d02_straight/contact_ref_kin.json` | new | 16.5 KB |
+| `tasks/task_d02_straight/contact_ref_kin.npz` | new | 209.0 KB |
+| `tasks/task_d02_straight/reference.npz` | new | 1012.6 KB |
+| `tasks/task_d02_straight/scene.xml` | new | 1.0 MB |
+| `tasks/task_d02_straight/task.json` | new | 6.1 KB |
+| `tasks/task_d02_straight/valid_starts.npy` | new | 6.7 KB |
+| `tasks/task_d02_straight/valid_starts_audit.json` | new | 54 B |
+| `tasks/task_d02_straight/wrist_targets.npz` | new | 348.1 KB |
+| `tasks/task_d02_straight_noprior/build_report.json` | new | 4.4 KB |
+| `tasks/task_d02_straight_noprior/contact_ref.json` | new | 526 B |
+| `tasks/task_d02_straight_noprior/contact_ref.npz` | new | 693.6 KB |
+| `tasks/task_d02_straight_noprior/reference.npz` | new | 1004.5 KB |
+| `tasks/task_d02_straight_noprior/scene.xml` | new | 1.0 MB |
+| `tasks/task_d02_straight_noprior/task.json` | new | 5.7 KB |
+| `tasks/task_d02_straight_noprior/valid_starts.npy` | new | 6.7 KB |
+| `tasks/task_d02_straight_noprior/valid_starts_audit.json` | new | 54 B |
+| `tasks/task_d02_straight_noprior/wrist_targets.npz` | new | 348.1 KB |
+| `tasks/task_d02_straight_v2/build_report.json` | new | 4.3 KB |
+| `tasks/task_d02_straight_v2/check/check.json` | new | 3.9 KB |
+| `tasks/task_d02_straight_v2/contact_ref.json` | new | 526 B |
+| `tasks/task_d02_straight_v2/contact_ref.npz` | new | 697.6 KB |
+| `tasks/task_d02_straight_v2/contact_ref_kin.json` | new | 16.5 KB |
+| `tasks/task_d02_straight_v2/contact_ref_kin.npz` | new | 209.9 KB |
+| `tasks/task_d02_straight_v2/ego/errors.npz` | new | 27.1 KB |
+| `tasks/task_d02_straight_v2/ego/rows.json` | new | 647.8 KB |
+| `tasks/task_d02_straight_v2/ego/summary.json` | new | 1.7 KB |
+| `tasks/task_d02_straight_v2/ego/topdown.npz` | new | 147.4 KB |
+| `tasks/task_d02_straight_v2/reference.npz` | new | 1.0 MB |
+| `tasks/task_d02_straight_v2/scene.xml` | new | 1.0 MB |
+| `tasks/task_d02_straight_v2/task.json` | new | 6.1 KB |
+| `tasks/task_d02_straight_v2/valid_starts.npy` | new | 6.7 KB |
+| `tasks/task_d02_straight_v2/valid_starts_audit.json` | new | 54 B |
+| `tasks/task_d02_straight_v2/wrist_targets.npz` | new | 357.7 KB |
+| `tasks/task_d02_straight_v2_noprior/build_report.json` | new | 4.3 KB |
+| `tasks/task_d02_straight_v2_noprior/contact_ref.json` | new | 526 B |
+| `tasks/task_d02_straight_v2_noprior/contact_ref.npz` | new | 697.6 KB |
+| `tasks/task_d02_straight_v2_noprior/reference.npz` | new | 1019.7 KB |
+| `tasks/task_d02_straight_v2_noprior/scene.xml` | new | 1.0 MB |
+| `tasks/task_d02_straight_v2_noprior/task.json` | new | 5.6 KB |
+| `tasks/task_d02_straight_v2_noprior/valid_starts.npy` | new | 6.7 KB |
+| `tasks/task_d02_straight_v2_noprior/valid_starts_audit.json` | new | 54 B |
+| `tasks/task_d02_straight_v2_noprior/wrist_targets.npz` | new | 357.7 KB |
+| `tasks/task_d02_straight_v3/build_report.json` | new | 5.9 KB |
+| `tasks/task_d02_straight_v3/check/check.json` | new | 4.2 KB |
+| `tasks/task_d02_straight_v3/contact_ref.json` | new | 526 B |
+| `tasks/task_d02_straight_v3/contact_ref.npz` | new | 837.1 KB |
+| `tasks/task_d02_straight_v3/contact_ref_kin.json` | new | 16.4 KB |
+| `tasks/task_d02_straight_v3/contact_ref_kin.npz` | new | 251.0 KB |
+| `tasks/task_d02_straight_v3/ego/errors.npz` | new | 27.1 KB |
+| `tasks/task_d02_straight_v3/ego/rows.json` | new | 647.8 KB |
+| `tasks/task_d02_straight_v3/ego/summary.json` | new | 1.7 KB |
+| `tasks/task_d02_straight_v3/ego/topdown.npz` | new | 147.4 KB |
+| `tasks/task_d02_straight_v3/reference.npz` | new | 1.3 MB |
+| `tasks/task_d02_straight_v3/scene.xml` | new | 1.0 MB |
+| `tasks/task_d02_straight_v3/task.json` | new | 8.4 KB |
+| `tasks/task_d02_straight_v3/valid_starts.npy` | new | 7.8 KB |
+| `tasks/task_d02_straight_v3/valid_starts_audit.json` | new | 54 B |
+| `tasks/task_d02_straight_v3/wrist_targets.npz` | new | 430.5 KB |
+| `tasks/task_d02_straight_v3_desk/build_report.json` | new | 5.9 KB |
+| `tasks/task_d02_straight_v3_desk/check/check.json` | new | 4.2 KB |
+| `tasks/task_d02_straight_v3_desk/contact_ref.json` | new | 526 B |
+| `tasks/task_d02_straight_v3_desk/contact_ref.npz` | new | 837.1 KB |
+| `tasks/task_d02_straight_v3_desk/contact_ref_kin.json` | new | 16.4 KB |
+| `tasks/task_d02_straight_v3_desk/contact_ref_kin.npz` | new | 251.0 KB |
+| `tasks/task_d02_straight_v3_desk/ego/errors.npz` | new | 27.1 KB |
+| `tasks/task_d02_straight_v3_desk/ego/rows.json` | new | 647.8 KB |
+| `tasks/task_d02_straight_v3_desk/ego/summary.json` | new | 1.7 KB |
+| `tasks/task_d02_straight_v3_desk/ego/topdown.npz` | new | 147.4 KB |
+| `tasks/task_d02_straight_v3_desk/reference.npz` | new | 1.3 MB |
+| `tasks/task_d02_straight_v3_desk/scene.xml` | new | 1.0 MB |
+| `tasks/task_d02_straight_v3_desk/task.json` | new | 8.7 KB |
+| `tasks/task_d02_straight_v3_desk/valid_starts.npy` | new | 7.8 KB |
+| `tasks/task_d02_straight_v3_desk/valid_starts_audit.json` | new | 54 B |
+| `tasks/task_d02_straight_v3_desk/wrist_targets.npz` | new | 430.5 KB |
+| `tasks/task_d02_straight_v3_noprior/build_report.json` | new | 5.9 KB |
+| `tasks/task_d02_straight_v3_noprior/contact_ref.json` | new | 526 B |
+| `tasks/task_d02_straight_v3_noprior/contact_ref.npz` | new | 837.1 KB |
+| `tasks/task_d02_straight_v3_noprior/reference.npz` | new | 1.3 MB |
+| `tasks/task_d02_straight_v3_noprior/scene.xml` | new | 1.0 MB |
+| `tasks/task_d02_straight_v3_noprior/task.json` | new | 7.8 KB |
+| `tasks/task_d02_straight_v3_noprior/valid_starts.npy` | new | 7.8 KB |
+| `tasks/task_d02_straight_v3_noprior/valid_starts_audit.json` | new | 54 B |
+| `tasks/task_d02_straight_v3_noprior/wrist_targets.npz` | new | 430.5 KB |
+| `tracker/build_demo_task.py` | new | 60.5 KB |
+| `tracker/build_kin_contact_ref.py` | new | 5.6 KB |
+| `tracker/check_demo_task.py` | new | 10.5 KB |
+| `tracker/configs/kin_d02_s5.json` | new | 3.7 KB |
+| `tracker/configs/kin_d02_s5_eval_crosshole.json` | new | 2.1 KB |
+| `tracker/configs/kin_d02_s5_eval_holdplace.json` | new | 2.6 KB |
+| `tracker/configs/kin_d02_s5_g3.json` | new | 4.1 KB |
+| `tracker/configs/kin_d02v2_ego_eval.json` | new | 5.1 KB |
+| `tracker/configs/kin_d02v2_ego_eval_crosshole.json` | new | 2.6 KB |
+| `tracker/configs/kin_d02v2_ego_eval_holdplace.json` | new | 3.1 KB |
+| `tracker/configs/kin_d02v2_eval_crosshole.json` | new | 2.2 KB |
+| `tracker/configs/kin_d02v2_eval_holdplace.json` | new | 2.6 KB |
+| `tracker/configs/kin_d02v2_ft_g3.json` | new | 4.7 KB |
+| `tracker/configs/kin_d02v3_eval_crosshole.json` | new | 2.6 KB |
+| `tracker/configs/kin_d02v3_eval_holdplace.json` | new | 3.0 KB |
+| `tracker/configs/kin_d02v3_tip_g3.json` | new | 3.1 KB |
+| `tracker/demo_to_task.py` | new | 7.4 KB |
+| `tracker/eval_tracker.py` | updated | 33.8 KB |
+| `tracker/expand_obs_ckpt.py` | new | 1.9 KB |
+| `tracker/move_table.py` | new | 3.0 KB |
+| `tracker/tracker_env.py` | updated | 11.8 KB |
+| `tracker/train_tracker.py` | updated | 11.2 KB |
+| `videos/blender/KA_final_world2/KA_final_world2_head_overview.mp4` | removed (videos are no longer committed) | – |
+| `videos/blender/KA_final_world2/head.mp4` | removed (videos are no longer committed) | – |
+| `videos/blender/KA_final_world2/overview.mp4` | removed (videos are no longer committed) | – |
+| `videos/caps_rounds/compare_world2.mp4` | removed (videos are no longer committed) | – |
+| `videos/caps_rounds/compare_world2_carry_slow4x.mp4` | removed (videos are no longer committed) | – |
+| `videos/caps_rounds/ee_path_world2.png` | removed (videos are no longer committed) | – |
+| `videos/kin_failures/KA_world150_12_stand_yaw_p30_pipette_return.mp4` | removed (videos are no longer committed) | – |
+| `videos/kin_failures/KA_world160_11_stand_yaw_p45_grasp_pose_unreachable.mp4` | removed (videos are no longer committed) | – |
+| `videos/kin_failures/KA_world20_10_stand_yaw_m30_wrist_joint_limit.mp4` | removed (videos are no longer committed) | – |
+| `videos/kin_failures/KA_world22_7_tube_slips_out_when_middle_finger_opens.mp4` | removed (videos are no longer committed) | – |
+| `videos/kin_failures/KA_world37_1_pipette_falls_returning_to_stand.mp4` | removed (videos are no longer committed) | – |
+| `videos/kin_failures/KA_world38_6_tube_jammed_tilted_in_rack.mp4` | removed (videos are no longer committed) | – |
+| `videos/kin_failures/KA_world44_2_pipette_extraction_from_stand.mp4` | removed (videos are no longer committed) | – |
+| `videos/kin_failures/KA_world49_3_tube_entering_rack.mp4` | removed (videos are no longer committed) | – |
+| `videos/kin_failures/KA_world56_5_tube_grasp_from_rack.mp4` | removed (videos are no longer committed) | – |
+| `videos/kin_failures/KA_world58_9_pick_r1c0_tube_jammed_tilted.mp4` | removed (videos are no longer committed) | – |
+| `videos/kin_failures/KA_world59_4_tube_lost_during_press.mp4` | removed (videos are no longer committed) | – |
+| `videos/kin_failures/KA_world59_8_pick_r1c0_tube_lost_lifting_out.mp4` | removed (videos are no longer committed) | – |
+| `videos/kin_failures/all_failures_12clips.mp4` | removed (videos are no longer committed) | – |
+| `videos/kin_ref_final/compare_world1.mp4` | removed (videos are no longer committed) | – |
+| `videos/kin_ref_final/compare_world2_press_slow2x.mp4` | removed (videos are no longer committed) | – |
+| `videos/kin_ref_final/compare_world3.mp4` | removed (videos are no longer committed) | – |
+| `videos/kin_ref_final/ee_path_world2.png` | removed (videos are no longer committed) | – |
+| `videos/pipette_vega_wuji_R3_reference_vs_R3B_50fps.mp4` | removed (videos are no longer committed) | – |
+| `videos/pipette_vega_wuji_RL_R2s2_nominal_DRon_vs_DRoff_50fps.mp4` | removed (videos are no longer committed) | – |
+| `videos/pipette_vega_wuji_RL_R3B_heldout_50fps.mp4` | removed (videos are no longer committed) | – |
+| `videos/reference_layers/reference_layers_press_8-12s_slow2x.mp4` | removed (videos are no longer committed) | – |
+| `videos/reference_layers/reference_layers_return_17-24s_slow2x.mp4` | removed (videos are no longer committed) | – |

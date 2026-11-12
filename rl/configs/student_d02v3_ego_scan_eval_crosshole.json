@@ -1,0 +1,187 @@
+{
+ "_note": "11-12 eval only: crosshole pairs (r0c1->r1c4, r1c2->r0c0) for the scan student (eval bank rows with those pick holes) | 11-12 eval only: student_d02v2_ego_eval_crosshole.json on v3 (student_d02v3_ego.json + the held-out placements / hole pairs of student_d02v2_ego_eval_crosshole). ",
+ "task": "../../tasks/task_d02_straight_v3",
+ "out": "../runs/student_d02v3_ego_g3",
+ "teacher_config": "../../tracker/configs/kin_d02v3_tip_g3.json",
+ "teacher_ckpt": "../../tracker/runs/kin_d02v3_tip_g3/final.pt",
+ "num_envs": 4096,
+ "seed": 5,
+ "wall_hours": 4.5,
+ "max_iters": 680,
+ "steps_per_iter": 24,
+ "buffer_iters": 8,
+ "epochs": 1,
+ "minibatch": 16384,
+ "lr": 0.001,
+ "lr_end": 0.0002,
+ "beta_iters": 50,
+ "hidden": [
+  512,
+  256,
+  128
+ ],
+ "latest_minutes": 5,
+ "ckpt_minutes": 30,
+ "dr": {
+  "kp_g1": [
+   0.5,
+   2.0
+  ],
+  "kv_g1": [
+   0.7,
+   1.4
+  ],
+  "kp_hand": [
+   0.7,
+   1.4
+  ],
+  "kv_hand": [
+   2.1,
+   4.2
+  ],
+  "friction_hand_object": [
+   0.7,
+   1.3
+  ],
+  "friction_pipette_tube": [
+   0.7,
+   1.3
+  ],
+  "object_mass": [
+   0.8,
+   1.2
+  ],
+  "joint_offset_g1": 0.01,
+  "joint_offset_hand": 0.02,
+  "object_start_xy_mm": 2.0,
+  "object_start_yaw_deg": 3.0,
+  "kv_g1_x_sqrt_kp": [
+   0.95,
+   1.4
+  ],
+  "obs_q_std_g1": 0.005,
+  "obs_q_std_hand": 0.01,
+  "obs_v_std_g1": 0.05
+ },
+ "group_scale": {
+  "FR": 0.1,
+  "AR": 0.04,
+  "FL": 0.05,
+  "AL": 0.04
+ },
+ "plunger_weight": 8.0,
+ "thumb_press_scale": 2.0,
+ "reward_scale": 0.01,
+ "extras": {
+  "real_cmd": true,
+  "ema_alpha": 0.5,
+  "holder": {
+   "stand_xy_mm": 50,
+   "stand_yaw_deg": 10,
+   "rack_xy_mm": 50,
+   "rack_yaw_deg": 10,
+   "blend_s": 1.5,
+   "meas_xy_mm": 5,
+   "meas_yaw_deg": 2,
+   "hole_pairs": [
+    [
+     "r0c1",
+     "r1c4"
+    ],
+    [
+     "r1c2",
+     "r0c0"
+    ]
+   ],
+   "engage_fix": true,
+   "hole_centres": "scene"
+  },
+  "w": {
+   "contact_set": 0.0,
+   "contact_graph": 0.0,
+   "wrench_support": 0.0,
+   "free_finger_acc": 0.0,
+   "action_rate": 0.5,
+   "elbow_height": 50.0,
+   "joint_margin": 1.0,
+   "finger_jerk": 0.2,
+   "thumb_prior": 0.5,
+   "posture": 0.1,
+   "finger_band": 3.0,
+   "tube_tilt": 1.0,
+   "arm_band": 1.0,
+   "finger_still": 1.0,
+   "pipette_seat": 1.0,
+   "contact_keep": 0.5,
+   "contact_drift": 0.5,
+   "contact_slip": 0.5,
+   "wrench_margin": 0.5,
+   "tip_align": 10.0
+  },
+  "cmd_hz": 100,
+  "clamp_after_ff": true,
+  "band_on_deviation": true,
+  "temporal_off_gates": [
+   "gate_grasp_shift_right",
+   "gate_grasp_shift_left",
+   "gate_regrasp"
+  ],
+  "tip": {
+   "obs": true
+  },
+  "perturb": {
+   "rate_hz": 0.2,
+   "force_n": [
+    2.0,
+    15.0
+   ],
+   "torque_nm": [
+    0.0,
+    0.5
+   ],
+   "dur_s": [
+    0.1,
+    0.4
+   ],
+   "bodies": [
+    "right_wrist",
+    "left_wrist"
+   ],
+   "start_delay_s": 0.5,
+   "scale": 1.0
+  },
+  "student": {
+   "meas_pos_mm": 5,
+   "meas_yaw_deg": 2,
+   "wrist_ref": true,
+   "depth": {
+    "res": [
+     96,
+     72
+    ],
+    "every": 2,
+    "aux_inhand": 1.0,
+    "mount": [
+     [
+      -0.005,
+      0.065,
+      0.06
+     ],
+     [
+      -0.075,
+      0.035,
+      -0.09
+     ]
+    ]
+   },
+   "scan": {
+    "bank": "../../rl/runs/ego_scan/eval_bank.npz",
+    "obs": "embedding"
+   }
+  }
+ },
+ "perturb_ramp_iters": [
+  50,
+  250
+ ]
+}

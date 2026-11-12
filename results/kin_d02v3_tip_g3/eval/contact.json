@@ -1,0 +1,42 @@
+{
+ "ckpt": "../tracker/runs/kin_d02v3_tip_g3/final.pt",
+ "config": "../tracker/configs/kin_d02v3_tip_g3.json",
+ "metrics_config": "rl/configs/rr_T1k_tc_s5.json",
+ "n_worlds": 64,
+ "survived_to_end": 61,
+ "counted_steps (alive, outside regrasp gates)": 61723,
+ "lost_fraction_per_step": {
+  "mean": 0.0226,
+  "p95": 0.1667
+ },
+ "lost_fraction_per_s (side-averaged, x 50 Hz)": 1.128,
+ "drift_mm_per_step (penalty units, side-averaged, capped 5)": {
+  "mean": 0.052,
+  "p95": 0.241
+ },
+ "slip_mm_per_step (same)": {
+  "mean": 0.072,
+  "p95": 0.299
+ },
+ "links_in_contact_per_world": 5.06,
+ "holds_required_wrench_share (ref-held steps)": {
+  "pipette": 0.853,
+  "tube": 0.911
+ },
+ "margin_mean_N (ref-held; 0 = full rho margin)": {
+  "pipette": 0.07,
+  "tube": 0.034
+ },
+ "params": {
+  "force_alpha": 0.1,
+  "keep_hysteresis": 0.5,
+  "margin_fmax": 3.0,
+  "margin_mu": 1.5,
+  "margin_rho": 0.3,
+  "temporal_off_gates": [
+   "gate_grasp_shift_right",
+   "gate_grasp_shift_left",
+   "gate_regrasp"
+  ]
+ }
+}

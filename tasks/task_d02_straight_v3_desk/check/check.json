@@ -1,0 +1,261 @@
+{
+ "task": "/home/jren313/Projects/vega-wuji-pipette-rl/tasks/task_d02_straight_v3",
+ "zero_residual_voc1": {
+  "fail_frac_all": 0.0,
+  "per_start_s": {
+   "3.00": {
+    "fail_frac": 0.0,
+    "first_fail_s_p50": null,
+    "reasons": []
+   },
+   "5.26": {
+    "fail_frac": 0.0,
+    "first_fail_s_p50": null,
+    "reasons": []
+   },
+   "7.52": {
+    "fail_frac": 0.0,
+    "first_fail_s_p50": null,
+    "reasons": []
+   },
+   "9.78": {
+    "fail_frac": 0.0,
+    "first_fail_s_p50": null,
+    "reasons": []
+   },
+   "12.04": {
+    "fail_frac": 0.0,
+    "first_fail_s_p50": null,
+    "reasons": []
+   },
+   "14.30": {
+    "fail_frac": 0.0,
+    "first_fail_s_p50": null,
+    "reasons": []
+   },
+   "16.56": {
+    "fail_frac": 0.0,
+    "first_fail_s_p50": null,
+    "reasons": []
+   },
+   "18.82": {
+    "fail_frac": 0.0,
+    "first_fail_s_p50": null,
+    "reasons": []
+   },
+   "21.09": {
+    "fail_frac": 0.0,
+    "first_fail_s_p50": null,
+    "reasons": []
+   }
+  }
+ },
+ "zero_residual_voc0": {
+  "fail_frac_all": 0.889,
+  "per_start_s": {
+   "3.00": {
+    "fail_frac": 1.0,
+    "first_fail_s_p50": 8.72,
+    "reasons": [
+     [
+      "tube:object_axis_points",
+      32
+     ]
+    ]
+   },
+   "5.26": {
+    "fail_frac": 1.0,
+    "first_fail_s_p50": 8.72,
+    "reasons": [
+     [
+      "tube:object_axis_points",
+      32
+     ]
+    ]
+   },
+   "7.52": {
+    "fail_frac": 1.0,
+    "first_fail_s_p50": 8.72,
+    "reasons": [
+     [
+      "tube:object_axis_points",
+      32
+     ]
+    ]
+   },
+   "9.78": {
+    "fail_frac": 1.0,
+    "first_fail_s_p50": 9.9,
+    "reasons": [
+     [
+      "tube:object_relative_position",
+      32
+     ]
+    ]
+   },
+   "12.04": {
+    "fail_frac": 1.0,
+    "first_fail_s_p50": 12.16,
+    "reasons": [
+     [
+      "tube:object_relative_position",
+      32
+     ]
+    ]
+   },
+   "14.30": {
+    "fail_frac": 1.0,
+    "first_fail_s_p50": 14.42,
+    "reasons": [
+     [
+      "tube:object_relative_position",
+      32
+     ]
+    ]
+   },
+   "16.56": {
+    "fail_frac": 1.0,
+    "first_fail_s_p50": 18.04,
+    "reasons": [
+     [
+      "tube:object_axis_points",
+      32
+     ]
+    ]
+   },
+   "18.82": {
+    "fail_frac": 1.0,
+    "first_fail_s_p50": 20.5,
+    "reasons": [
+     [
+      "tube:object_axis_points",
+      32
+     ]
+    ]
+   },
+   "21.09": {
+    "fail_frac": 0.0,
+    "first_fail_s_p50": null,
+    "reasons": []
+   }
+  }
+ },
+ "pass_voc1": true,
+ "build_summary": {
+  "midair_search": {
+   "chosen": "fixed",
+   "args": [
+    -0.1,
+    0.1,
+    0.6,
+    30.0,
+    0.0,
+    0.1
+   ]
+  },
+  "ik": {
+   "right": {
+    "pos_mm_p50_max": [
+     0.0,
+     0.4
+    ],
+    "rot_deg_max": 0.16,
+    "frames_over_2mm_or_2deg": 0,
+    "worst_times_s": [
+     14.9,
+     14.91,
+     14.89,
+     14.92,
+     14.93
+    ],
+    "max_step_deg": 0.99,
+    "margin_to_limit_deg_min": 1.1,
+    "max_joint_speed_rad_s": 1.61,
+    "frames_over_2rad_s": 0,
+    "fastest_times_s": [
+     14.92,
+     14.91,
+     14.93
+    ],
+    "max_joint_speed_rad_s_after_retime": 1.61
+   },
+   "left": {
+    "pos_mm_p50_max": [
+     0.0,
+     0.0
+    ],
+    "rot_deg_max": 0.0,
+    "frames_over_2mm_or_2deg": 0,
+    "worst_times_s": [
+     8.66,
+     18.87,
+     18.89,
+     8.68,
+     8.67
+    ],
+    "max_step_deg": 0.75,
+    "margin_to_limit_deg_min": 21.1,
+    "max_joint_speed_rad_s": 1.29,
+    "frames_over_2rad_s": 0,
+    "fastest_times_s": [
+     9.23,
+     9.22,
+     9.24
+    ],
+    "max_joint_speed_rad_s_after_retime": 1.29
+   }
+  },
+  "reference_penetrations_gt3mm": {
+   "left_object|left_ring_finger_distal": {
+    "frames": 4,
+    "worst_mm": -3.3,
+    "first_s": 7.7,
+    "last_s": 21.5
+   }
+  },
+  "tip_in_tube": {
+   "window_s": [
+    12.42,
+    15.25
+   ],
+   "insert": {
+    "k": {
+     "approach": 720,
+     "descent": 810,
+     "in": 942,
+     "out": 1225,
+     "extracted": 1265,
+     "returned": 1402
+    },
+    "t_s": {
+     "approach": 10.2,
+     "descent": 11.1,
+     "in": 12.42,
+     "out": 15.25,
+     "extracted": 15.65,
+     "returned": 17.02
+    },
+    "depth_mm_in_out_max": [
+     73.0,
+     26.1,
+     75.0
+    ]
+   }
+  },
+  "thumb_open_clearance_mm": {
+   "right": {
+    "template_open": -10.5,
+    "replaced_deg": [
+     38.5,
+     -85.0,
+     15.0,
+     50.0
+    ],
+    "clearance": 10.8
+   },
+   "left": {
+    "template_open": -0.1
+   }
+  }
+ }
+}

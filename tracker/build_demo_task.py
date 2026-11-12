@@ -202,12 +202,12 @@ def ground_truth_holders(Pd, Ud, ev_k, tpl, hole, rep):
     return P_seat, U_seat, S_stand, S_rack
 
 
-def write_scene(src, dst, base_xy, base_yaw, moves, obj_init):
+def write_scene(src, dst, base_xy, base_yaw, moves, obj_init, base_z=0.):
     """template scene.xml with the robot base moved and holder geoms moved rigidly (moves: name -> 4x4 world transform)"""
     tree = ET.parse(src); root = tree.getroot()
     for b in root.iter('body'):
         if b.get('name') == 'base_link':
-            b.set('pos', f'{base_xy[0]:.9f} {base_xy[1]:.9f} 0'); b.set('quat', ' '.join(f'{x:.12g}' for x in (math.cos(base_yaw/2), 0, 0, math.sin(base_yaw/2))))
+            b.set('pos', f'{base_xy[0]:.9f} {base_xy[1]:.9f} {base_z:.9f}'); b.set('quat', ' '.join(f'{x:.12g}' for x in (math.cos(base_yaw/2), 0, 0, math.sin(base_yaw/2))))
         if b.get('name') in obj_init:
             T = obj_init[b.get('name')]
             b.set('pos', ' '.join(f'{x:.9f}' for x in T[:3, 3])); b.set('quat', ' '.join(f'{x:.12g}' for x in Rot.from_matrix(T[:3, :3]).as_quat(scalar_first=True)))
@@ -585,6 +585,8 @@ def main():
     ap.add_argument('--fwd', type=float, default=.30, help='demo origin (camera foot) in front of the robot base origin (m)')
     ap.add_argument('--lat', type=float, default=0., help='demo origin to the left of the robot base origin (m)')
     ap.add_argument('--base-x', type=float, default=.890829257623, help='robot base x (template distance to the table edge)'); ap.add_argument('--base-y', type=float, default=0.)
+    ap.add_argument('--base-z', type=float, default=0., help='(11-12) robot base height above the floor (m): the robot vs the table height (template table top 0.72 m); '
+                    '+ = the robot sits higher relative to the table. Holders, objects and the demo stay on the table; the IK re-solves the arms')
     ap.add_argument('--hole', default='r1c1', help='rack hole the tube is picked from and placed back into')
     ap.add_argument('--blend-s', type=float, default=1.5); ap.add_argument('--smooth-s', type=float, default=.08)
     ap.add_argument('--pre-s', type=float, default=2.5, help='reference starts this long before the pipette lift')
@@ -606,7 +608,7 @@ def main():
     ev = {'pipette_lift': t[kp0], 'pipette_seat': t[kp1], 'tube_lift': t[ku0], 'tube_seat': t[ku1]}; rep['events_demo_s'] = {k: round(float(v), 2) for k, v in ev.items()}
     P_seat, U_seat, S_stand, S_rack = ground_truth_holders(Pd, Ud, (kp0, kp1, ku0, ku1), tpl, a.hole, rep)
     base_xy = (a.base_x, a.base_y)
-    cnt = write_scene(TEMPLATE/'scene.xml', a.out/'scene.xml', base_xy, math.pi, {'stand': S_stand, 'rack': S_rack}, {'right_object': P_seat, 'left_object': U_seat})
+    cnt = write_scene(TEMPLATE/'scene.xml', a.out/'scene.xml', base_xy, math.pi, {'stand': S_stand, 'rack': S_rack}, {'right_object': P_seat, 'left_object': U_seat}, base_z=a.base_z)
     m = mujoco.MjModel.from_xml_path(str(a.out/'scene.xml')); d = mujoco.MjData(m); rep['scene'] = {'moved_geoms': cnt, 'nq': m.nq, 'nu': m.nu}
     Vp = pipette_lower_verts(m); lo_ = Vp[:, 2] < Vp[:, 2].min()+1e-3; tip_mesh = np.r_[Vp[lo_, :2].mean(0), Vp[:, 2].min()]   # (11-12) PIP_TIP = the mesh's tip
     assert np.linalg.norm(tip_mesh-PIP_TIP) < 1e-3, ('PIP_TIP does not match the pipette mesh', tip_mesh, PIP_TIP); rep['pipette_tip_mesh_m'] = tip_mesh.round(4).tolist()
@@ -736,7 +738,7 @@ def main():
           'sim_dt': SIM_DT, 'frames_100hz': nf, 'ctrl_rows': ns, 'window_demo_s': [float(demo_t[0]), float(demo_t[-1])], 'window_ref_s': [float(tg[0]), float(tg[-1])], 'retime': rep.get('retime'),
           'phases': {'lift': float(ev['pipette_lift']), 'press_on': tip_win[0] if tip_win else None, 'press_off': tip_win[1] if tip_win else None},
           'ref_holes': [a.hole, a.hole], 'tube_slip_window_s': [float(ev['tube_lift']), float(ev['tube_seat'])], 'base_kind': 'kinematic', 'prior': 'none',
-          'plunger_ref_max_mm': PLUNGER_MAX*1e3, 'robot_base': {'xy': list(base_xy), 'yaw_deg': 180.}, 'build': rep}
+          'plunger_ref_max_mm': PLUNGER_MAX*1e3, 'robot_base': {'xy': list(base_xy), 'z': a.base_z, 'yaw_deg': 180.}, 'build': rep}
     (a.out/'task.json').write_text(json.dumps(tj, indent=1, default=float)+'\n'); (a.out/'build_report.json').write_text(json.dumps(rep, indent=1, default=float)+'\n')
     print(json.dumps({k: rep[k] for k in ('events_demo_s', 'midair_search', 'ik', 'reference_penetrations_gt3mm', 'tip_in_tube', 'tip_path') if k in rep}, default=float)[:4000])
 

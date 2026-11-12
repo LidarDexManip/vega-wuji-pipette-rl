@@ -1,0 +1,732 @@
+{
+ "layer": "kinematic-reference labels (distance) vs the physics-demo labels (force); held frames of that hand only",
+ "thresholds_mm": [
+  2,
+  5,
+  10
+ ],
+ "held_frames": {
+  "right (pipette)": 1384,
+  "left (tube)": 1335
+ },
+ "per_phase": {
+  "pre_lift": {
+   "2mm": {
+    "right: index NOT on pipette body (four-finger hold needs it)": 0.475,
+    "right: middle NOT on pipette body (four-finger hold needs it)": 0.588,
+    "right: ring NOT on pipette body (four-finger hold needs it)": 0.512,
+    "right: pinky NOT on pipette body (four-finger hold needs it)": 0.512,
+    "right: thumb on pipette BODY (video: thumb only presses)": 0.0,
+    "right: thumb on plunger (press / light rest: allowed)": 0.0,
+    "right: a non-thumb finger on the plunger (video: no)": 0.0,
+    "right: palm on pipette (info)": 1.0
+   },
+   "5mm": {
+    "right: index NOT on pipette body (four-finger hold needs it)": 0.163,
+    "right: middle NOT on pipette body (four-finger hold needs it)": 0.525,
+    "right: ring NOT on pipette body (four-finger hold needs it)": 0.338,
+    "right: pinky NOT on pipette body (four-finger hold needs it)": 0.4,
+    "right: thumb on pipette BODY (video: thumb only presses)": 0.0,
+    "right: thumb on plunger (press / light rest: allowed)": 0.0,
+    "right: a non-thumb finger on the plunger (video: no)": 0.0,
+    "right: palm on pipette (info)": 1.0
+   },
+   "10mm": {
+    "right: index NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: middle NOT on pipette body (four-finger hold needs it)": 0.35,
+    "right: ring NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: pinky NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: thumb on pipette BODY (video: thumb only presses)": 0.0,
+    "right: thumb on plunger (press / light rest: allowed)": 0.1,
+    "right: a non-thumb finger on the plunger (video: no)": 0.0,
+    "right: palm on pipette (info)": 1.0
+   },
+   "links (name, demo-label frac, kin-5mm frac, median dist mm)": [
+    [
+     "right_index_finger_distal",
+     0.425,
+     0.838,
+     2.0
+    ],
+    [
+     "right_index_finger_middle",
+     0.525,
+     0.812,
+     2.0
+    ],
+    [
+     "right_index_finger_proximal",
+     0.388,
+     0.55,
+     3.8
+    ],
+    [
+     "right_index_finger_proximal_abd",
+     0.4,
+     0.537,
+     4.0
+    ],
+    [
+     "right_middle_finger_distal",
+     0.412,
+     0.475,
+     6.7
+    ],
+    [
+     "right_middle_finger_middle",
+     0.4,
+     0.463,
+     7.7
+    ],
+    [
+     "right_middle_finger_proximal",
+     0.0,
+     0.425,
+     6.3
+    ],
+    [
+     "right_middle_finger_proximal_abd",
+     0.0,
+     0.463,
+     6.0
+    ],
+    [
+     "right_pinky_distal",
+     0.425,
+     0.525,
+     4.2
+    ],
+    [
+     "right_pinky_middle",
+     0.425,
+     0.512,
+     4.4
+    ],
+    [
+     "right_pinky_proximal",
+     0.487,
+     0.6,
+     2.4
+    ],
+    [
+     "right_pinky_proximal_abd",
+     0.45,
+     0.562,
+     3.3
+    ],
+    [
+     "right_ring_finger_distal",
+     0.412,
+     0.475,
+     6.6
+    ],
+    [
+     "right_ring_finger_middle",
+     0.388,
+     0.463,
+     6.9
+    ],
+    [
+     "right_ring_finger_proximal",
+     0.487,
+     0.662,
+     2.3
+    ],
+    [
+     "right_ring_finger_proximal_abd",
+     0.0,
+     0.512,
+     4.7
+    ],
+    [
+     "right_wrist",
+     1.0,
+     1.0,
+     -0.2
+    ]
+   ]
+  },
+  "carry": {
+   "2mm": {
+    "left: thumb NOT touching tube (pinch needs it)": 0.096,
+    "left: index NOT touching tube (pinch needs it)": 0.109,
+    "left: ring touching tube (video: no)": 0.051,
+    "left: pinky touching tube (video: no)": 0.0,
+    "left: palm touching tube (video: no)": 0.0,
+    "left: middle touching tube (allowed)": 0.889,
+    "right: index NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: middle NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: ring NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: pinky NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: thumb on pipette BODY (video: thumb only presses)": 0.0,
+    "right: thumb on plunger (press / light rest: allowed)": 0.0,
+    "right: a non-thumb finger on the plunger (video: no)": 0.0,
+    "right: palm on pipette (info)": 1.0
+   },
+   "5mm": {
+    "left: thumb NOT touching tube (pinch needs it)": 0.081,
+    "left: index NOT touching tube (pinch needs it)": 0.103,
+    "left: ring touching tube (video: no)": 0.058,
+    "left: pinky touching tube (video: no)": 0.0,
+    "left: palm touching tube (video: no)": 0.0,
+    "left: middle touching tube (allowed)": 0.895,
+    "right: index NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: middle NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: ring NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: pinky NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: thumb on pipette BODY (video: thumb only presses)": 0.0,
+    "right: thumb on plunger (press / light rest: allowed)": 0.999,
+    "right: a non-thumb finger on the plunger (video: no)": 0.0,
+    "right: palm on pipette (info)": 1.0
+   },
+   "10mm": {
+    "left: thumb NOT touching tube (pinch needs it)": 0.068,
+    "left: index NOT touching tube (pinch needs it)": 0.092,
+    "left: ring touching tube (video: no)": 0.064,
+    "left: pinky touching tube (video: no)": 0.0,
+    "left: palm touching tube (video: no)": 0.0,
+    "left: middle touching tube (allowed)": 0.904,
+    "right: index NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: middle NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: ring NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: pinky NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: thumb on pipette BODY (video: thumb only presses)": 0.0,
+    "right: thumb on plunger (press / light rest: allowed)": 1.0,
+    "right: a non-thumb finger on the plunger (video: no)": 0.0,
+    "right: palm on pipette (info)": 1.0
+   },
+   "links (name, demo-label frac, kin-5mm frac, median dist mm)": [
+    [
+     "left_index_finger_distal",
+     0.891,
+     0.897,
+     0.4
+    ],
+    [
+     "left_index_finger_middle",
+     0.0,
+     0.885,
+     4.4
+    ],
+    [
+     "left_middle_finger_distal",
+     0.889,
+     0.895,
+     0.6
+    ],
+    [
+     "left_middle_finger_middle",
+     0.0,
+     0.887,
+     3.9
+    ],
+    [
+     "left_ring_finger_distal",
+     0.051,
+     0.058,
+     12.0
+    ],
+    [
+     "left_ring_finger_middle",
+     0.026,
+     0.058,
+     12.0
+    ],
+    [
+     "left_thumb_distal",
+     0.904,
+     0.919,
+     -0.2
+    ],
+    [
+     "right_index_finger_distal",
+     1.0,
+     1.0,
+     -1.0
+    ],
+    [
+     "right_index_finger_middle",
+     1.0,
+     1.0,
+     -0.0
+    ],
+    [
+     "right_index_finger_proximal",
+     1.0,
+     1.0,
+     1.4
+    ],
+    [
+     "right_index_finger_proximal_abd",
+     1.0,
+     1.0,
+     1.0
+    ],
+    [
+     "right_middle_finger_distal",
+     1.0,
+     1.0,
+     -0.6
+    ],
+    [
+     "right_middle_finger_middle",
+     1.0,
+     1.0,
+     -0.0
+    ],
+    [
+     "right_middle_finger_proximal",
+     0.0,
+     1.0,
+     4.1
+    ],
+    [
+     "right_middle_finger_proximal_abd",
+     0.0,
+     1.0,
+     2.5
+    ],
+    [
+     "right_pinky_distal",
+     1.0,
+     1.0,
+     0.1
+    ],
+    [
+     "right_pinky_middle",
+     1.0,
+     1.0,
+     0.1
+    ],
+    [
+     "right_pinky_proximal",
+     1.0,
+     1.0,
+     -0.0
+    ],
+    [
+     "right_pinky_proximal_abd",
+     1.0,
+     1.0,
+     0.2
+    ],
+    [
+     "right_ring_finger_distal",
+     1.0,
+     1.0,
+     -0.9
+    ],
+    [
+     "right_ring_finger_middle",
+     1.0,
+     1.0,
+     0.3
+    ],
+    [
+     "right_ring_finger_proximal",
+     1.0,
+     1.0,
+     0.5
+    ],
+    [
+     "right_ring_finger_proximal_abd",
+     0.0,
+     1.0,
+     2.5
+    ],
+    [
+     "right_thumb_distal",
+     0.0,
+     0.999,
+     4.1
+    ],
+    [
+     "right_wrist",
+     1.0,
+     1.0,
+     -0.2
+    ]
+   ]
+  },
+  "press": {
+   "2mm": {
+    "left: thumb NOT touching tube (pinch needs it)": 0.0,
+    "left: index NOT touching tube (pinch needs it)": 0.0,
+    "left: ring touching tube (video: no)": 0.0,
+    "left: pinky touching tube (video: no)": 0.0,
+    "left: palm touching tube (video: no)": 0.0,
+    "left: middle touching tube (allowed)": 1.0,
+    "right: index NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: middle NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: ring NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: pinky NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: thumb on pipette BODY (video: thumb only presses)": 0.0,
+    "right: thumb on plunger (press / light rest: allowed)": 0.0,
+    "right: a non-thumb finger on the plunger (video: no)": 0.0,
+    "right: palm on pipette (info)": 1.0
+   },
+   "5mm": {
+    "left: thumb NOT touching tube (pinch needs it)": 0.0,
+    "left: index NOT touching tube (pinch needs it)": 0.0,
+    "left: ring touching tube (video: no)": 0.0,
+    "left: pinky touching tube (video: no)": 0.0,
+    "left: palm touching tube (video: no)": 0.0,
+    "left: middle touching tube (allowed)": 1.0,
+    "right: index NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: middle NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: ring NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: pinky NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: thumb on pipette BODY (video: thumb only presses)": 0.0,
+    "right: thumb on plunger (press / light rest: allowed)": 0.151,
+    "right: a non-thumb finger on the plunger (video: no)": 0.0,
+    "right: palm on pipette (info)": 1.0
+   },
+   "10mm": {
+    "left: thumb NOT touching tube (pinch needs it)": 0.0,
+    "left: index NOT touching tube (pinch needs it)": 0.0,
+    "left: ring touching tube (video: no)": 0.0,
+    "left: pinky touching tube (video: no)": 0.0,
+    "left: palm touching tube (video: no)": 0.0,
+    "left: middle touching tube (allowed)": 1.0,
+    "right: index NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: middle NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: ring NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: pinky NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: thumb on pipette BODY (video: thumb only presses)": 0.0,
+    "right: thumb on plunger (press / light rest: allowed)": 1.0,
+    "right: a non-thumb finger on the plunger (video: no)": 0.0,
+    "right: palm on pipette (info)": 1.0
+   },
+   "links (name, demo-label frac, kin-5mm frac, median dist mm)": [
+    [
+     "left_index_finger_distal",
+     1.0,
+     1.0,
+     0.4
+    ],
+    [
+     "left_index_finger_middle",
+     0.0,
+     1.0,
+     4.4
+    ],
+    [
+     "left_middle_finger_distal",
+     1.0,
+     1.0,
+     0.6
+    ],
+    [
+     "left_middle_finger_middle",
+     0.0,
+     1.0,
+     3.9
+    ],
+    [
+     "left_thumb_distal",
+     1.0,
+     1.0,
+     -0.2
+    ],
+    [
+     "right_index_finger_distal",
+     1.0,
+     1.0,
+     -1.0
+    ],
+    [
+     "right_index_finger_middle",
+     1.0,
+     1.0,
+     -0.0
+    ],
+    [
+     "right_index_finger_proximal",
+     1.0,
+     1.0,
+     1.4
+    ],
+    [
+     "right_index_finger_proximal_abd",
+     1.0,
+     1.0,
+     1.0
+    ],
+    [
+     "right_middle_finger_distal",
+     1.0,
+     1.0,
+     -0.6
+    ],
+    [
+     "right_middle_finger_middle",
+     1.0,
+     1.0,
+     -0.0
+    ],
+    [
+     "right_middle_finger_proximal",
+     0.0,
+     1.0,
+     4.1
+    ],
+    [
+     "right_middle_finger_proximal_abd",
+     0.0,
+     1.0,
+     2.5
+    ],
+    [
+     "right_pinky_distal",
+     1.0,
+     1.0,
+     0.1
+    ],
+    [
+     "right_pinky_middle",
+     1.0,
+     1.0,
+     0.1
+    ],
+    [
+     "right_pinky_proximal",
+     1.0,
+     1.0,
+     -0.0
+    ],
+    [
+     "right_pinky_proximal_abd",
+     1.0,
+     1.0,
+     0.2
+    ],
+    [
+     "right_ring_finger_distal",
+     1.0,
+     1.0,
+     -0.9
+    ],
+    [
+     "right_ring_finger_middle",
+     1.0,
+     1.0,
+     0.3
+    ],
+    [
+     "right_ring_finger_proximal",
+     1.0,
+     1.0,
+     0.5
+    ],
+    [
+     "right_ring_finger_proximal_abd",
+     0.0,
+     1.0,
+     2.5
+    ],
+    [
+     "right_thumb_distal",
+     0.0,
+     0.151,
+     7.0
+    ],
+    [
+     "right_wrist",
+     1.0,
+     1.0,
+     -0.2
+    ]
+   ]
+  },
+  "post_press": {
+   "2mm": {
+    "left: thumb NOT touching tube (pinch needs it)": 0.0,
+    "left: index NOT touching tube (pinch needs it)": 0.0,
+    "left: ring touching tube (video: no)": 0.0,
+    "left: pinky touching tube (video: no)": 0.0,
+    "left: palm touching tube (video: no)": 0.0,
+    "left: middle touching tube (allowed)": 0.998,
+    "right: index NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: middle NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: ring NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: pinky NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: thumb on pipette BODY (video: thumb only presses)": 0.0,
+    "right: thumb on plunger (press / light rest: allowed)": 0.0,
+    "right: a non-thumb finger on the plunger (video: no)": 0.0,
+    "right: palm on pipette (info)": 1.0
+   },
+   "5mm": {
+    "left: thumb NOT touching tube (pinch needs it)": 0.0,
+    "left: index NOT touching tube (pinch needs it)": 0.0,
+    "left: ring touching tube (video: no)": 0.0,
+    "left: pinky touching tube (video: no)": 0.0,
+    "left: palm touching tube (video: no)": 0.0,
+    "left: middle touching tube (allowed)": 1.0,
+    "right: index NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: middle NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: ring NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: pinky NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: thumb on pipette BODY (video: thumb only presses)": 0.0,
+    "right: thumb on plunger (press / light rest: allowed)": 0.838,
+    "right: a non-thumb finger on the plunger (video: no)": 0.0,
+    "right: palm on pipette (info)": 1.0
+   },
+   "10mm": {
+    "left: thumb NOT touching tube (pinch needs it)": 0.0,
+    "left: index NOT touching tube (pinch needs it)": 0.0,
+    "left: ring touching tube (video: no)": 0.0,
+    "left: pinky touching tube (video: no)": 0.0,
+    "left: palm touching tube (video: no)": 0.0,
+    "left: middle touching tube (allowed)": 1.0,
+    "right: index NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: middle NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: ring NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: pinky NOT on pipette body (four-finger hold needs it)": 0.0,
+    "right: thumb on pipette BODY (video: thumb only presses)": 0.0,
+    "right: thumb on plunger (press / light rest: allowed)": 0.896,
+    "right: a non-thumb finger on the plunger (video: no)": 0.0,
+    "right: palm on pipette (info)": 1.0
+   },
+   "links (name, demo-label frac, kin-5mm frac, median dist mm)": [
+    [
+     "left_index_finger_distal",
+     1.0,
+     1.0,
+     0.4
+    ],
+    [
+     "left_index_finger_middle",
+     0.0,
+     0.997,
+     4.4
+    ],
+    [
+     "left_middle_finger_distal",
+     0.998,
+     1.0,
+     0.6
+    ],
+    [
+     "left_middle_finger_middle",
+     0.0,
+     0.998,
+     3.9
+    ],
+    [
+     "left_thumb_distal",
+     1.0,
+     1.0,
+     -0.2
+    ],
+    [
+     "right_index_finger_distal",
+     1.0,
+     1.0,
+     -1.0
+    ],
+    [
+     "right_index_finger_middle",
+     1.0,
+     1.0,
+     -0.0
+    ],
+    [
+     "right_index_finger_proximal",
+     1.0,
+     1.0,
+     1.4
+    ],
+    [
+     "right_index_finger_proximal_abd",
+     1.0,
+     1.0,
+     1.0
+    ],
+    [
+     "right_middle_finger_distal",
+     1.0,
+     1.0,
+     -0.6
+    ],
+    [
+     "right_middle_finger_middle",
+     1.0,
+     1.0,
+     -0.0
+    ],
+    [
+     "right_middle_finger_proximal",
+     0.0,
+     1.0,
+     4.1
+    ],
+    [
+     "right_middle_finger_proximal_abd",
+     0.0,
+     1.0,
+     2.5
+    ],
+    [
+     "right_pinky_distal",
+     1.0,
+     1.0,
+     0.1
+    ],
+    [
+     "right_pinky_middle",
+     1.0,
+     1.0,
+     0.1
+    ],
+    [
+     "right_pinky_proximal",
+     1.0,
+     1.0,
+     -0.0
+    ],
+    [
+     "right_pinky_proximal_abd",
+     1.0,
+     1.0,
+     0.2
+    ],
+    [
+     "right_ring_finger_distal",
+     1.0,
+     1.0,
+     -0.9
+    ],
+    [
+     "right_ring_finger_middle",
+     1.0,
+     1.0,
+     0.3
+    ],
+    [
+     "right_ring_finger_proximal",
+     1.0,
+     1.0,
+     0.5
+    ],
+    [
+     "right_ring_finger_proximal_abd",
+     0.018,
+     1.0,
+     2.5
+    ],
+    [
+     "right_thumb_distal",
+     0.0,
+     0.838,
+     4.1
+    ],
+    [
+     "right_wrist",
+     1.0,
+     1.0,
+     -0.2
+    ]
+   ]
+  }
+ }
+}
