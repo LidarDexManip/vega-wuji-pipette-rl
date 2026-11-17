@@ -102,7 +102,11 @@ def wrench_residual(n, pos, com, targets, mu, world, N, torque_len, fmax, iters=
     Rx[:, 0, 1], Rx[:, 0, 2], Rx[:, 1, 0], Rx[:, 1, 2], Rx[:, 2, 0], Rx[:, 2, 1] = -r[:, 2], r[:, 1], r[:, 2], -r[:, 0], -r[:, 1], r[:, 0]
     Gc = torch.cat([torch.eye(3, device=dev).expand(r.shape[0], 3, 3), Rx], 1)                 # (C, 6, 3): f -> [f; r x f]
     S = torch.zeros(N, 6, 6, device=dev); S.index_add_(0, world, Gc@Gc.transpose(1, 2))
-    step = (1./torch.linalg.eigvalsh(S)[:, -1].clamp_min(1e-9))[world][None, :, None]           # 1 / Lipschitz constant of the world
+    S = torch.nan_to_num(S, nan=0., posinf=0., neginf=0.)
+    try: lmax = torch.linalg.eigvalsh(S)[:, -1]
+    except torch._C._LinAlgError: lmax = torch.linalg.matrix_norm(S)   # (11-17) an ill-conditioned world (bad contact data) crashed eigvalsh; the Frobenius norm
+    # bounds the largest eigenvalue from above, so 1 / it is still a valid (smaller) FISTA step
+    step = (1./lmax.clamp_min(1e-9))[world][None, :, None]           # 1 / Lipschitz constant of the world
     tg = targets.transpose(0, 1)                                                                # (K, N, 6)
 
     def resid(f):

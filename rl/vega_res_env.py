@@ -34,7 +34,8 @@ import vega_extras as X
 FAILURES = ('object_relative_position', 'object_relative_orientation', 'object_axis_points', 'object_world_position',
             'object_world_orientation', 'object_height', 'object_linear_velocity', 'object_angular_velocity', 'nonfinite')
 SIDES = ('right', 'left')
-DR_FIELDS = ('geom_friction', 'pair_friction', 'body_mass', 'body_subtreemass', 'body_inertia', 'body_invweight0', 'dof_invweight0', 'actuator_gainprm', 'actuator_biasprm', 'actuator_forcerange', 'jnt_actfrcrange', 'body_pos', 'geom_pos', 'geom_quat')
+DR_FIELDS = ('geom_friction', 'pair_friction', 'body_mass', 'body_subtreemass', 'body_inertia', 'body_invweight0', 'dof_invweight0', 'actuator_gainprm', 'actuator_biasprm', 'actuator_forcerange', 'jnt_actfrcrange', 'body_pos', 'geom_pos', 'geom_quat',
+             'dof_frictionloss')   # (11-17) finger joint stiction DR (frictionloss_hand)
 PREFIX = {'right': 'r', 'left': 'l'}
 OBJECT_BODY = {'right': 'right_object', 'left': 'left_object'}
 WRIST_BODY = {'right': 'right_wrist', 'left': 'left_wrist'}
@@ -185,7 +186,7 @@ class BimanualGpuEnv:
         if obs_mode == 'deployable': self._actor_init()
         X.init(self, extras or {}); X.tip_init(self); X.perturb_init(self)   # (11-12) tip vs tube (reward / teacher obs), hand pushes; both off by default
         if self.dr_on: X.holder_init(self)
-        X.student_init(self)
+        X.student_init(self); X.multi_init(self)   # (11-13) multi_init: composite (two-tube) tasks only
         self.ep_stats = self._new_stats()
         self._capture()
         self.reset_envs(torch.ones(N, dtype=torch.bool, device=dev))
@@ -227,6 +228,12 @@ class BimanualGpuEnv:
         if 'action_delay_steps' in dr: self.a_buf = torch.zeros(int(dr['action_delay_steps'][1])+1, self.num_envs, self.nu, device=self.device)
         else: self.a_buf = None
         if 'base_xy_mm' in dr: self.base_off = torch.zeros(self.num_envs, 2, device=self.device)
+        self.base_offz = torch.zeros(self.num_envs, device=self.device) if 'base_z_mm' in dr else None   # (11-17) robot base height vs the table (real table 1.7-2.3 cm off)
+        # (11-17 b) base_z_ramp false: the base height offset is there from the reset (no offset_ramp_s ramp); the start state's arm is solved for it
+        # (holder_reset) and the command re-anchoring uses it at full weight. With the ramp, episodes started mid-grasp saw the robot rise by the
+        # whole offset in 0.5 s, faster than the arm (lag model) follows: at +28 mm 19 % of such starts dropped the pipette.
+        self.bz_ramp = bool(dr.get('base_z_ramp', True))
+        self.x_stale = torch.zeros(self.num_envs, dtype=torch.long, device=self.device) if 'obs_stale' in dr else None; self.x_obs_last = None   # (11-17) state-stream gaps
         if 'arm_gains' in dr:
             kp, kv = torch.as_tensor(dr['arm_gains']['kp'], dtype=torch.float32, device=self.device), torch.as_tensor(dr['arm_gains']['kv'], dtype=torch.float32, device=self.device); g0, b0 = self.m0['actuator_gainprm'], self.m0['actuator_biasprm']
             g0[self.arm_ids, 0] = kp; b0[self.arm_ids, 1] = -kp; b0[self.arm_ids, 2] = -kv; self.mf['actuator_gainprm'][:] = g0; self.mf['actuator_biasprm'][:] = b0
@@ -238,7 +245,11 @@ class BimanualGpuEnv:
         d = self.dr; n = len(ids); nu = self.nu; mf, m0 = self.mf, self.m0; vec = self.dr_vec
         if 'friction_hand_object' in d or 'friction_pipette_tube' in d:
             pf = m0['pair_friction'][None].repeat(n, 1, 1)
-            if 'friction_hand_object' in d: x = self._uni((n,), d['friction_hand_object']); pf[:, self.pair_ho] *= x[:, None, None]; vec[ids, 0] = x
+            if 'friction_hand_object' in d:
+                x = self._uni((n,), d['friction_hand_object'])
+                if 'friction_hand_object_low' in d:   # (11-15, pickup) this fraction of worlds draws from the low range (hard cases oversampled)
+                    lw = torch.rand(n, device=self.device, generator=self.gen_dr) < float(d.get('friction_hand_object_low_frac', .5)); x = torch.where(lw, self._uni((n,), d['friction_hand_object_low']), x)
+                pf[:, self.pair_ho] *= x[:, None, None]; vec[ids, 0] = x
             if 'friction_pipette_tube' in d: x = self._uni((n,), d['friction_pipette_tube']); pf[:, self.pair_pt] *= x[:, None, None]; vec[ids, 2] = x
             mf['pair_friction'][ids] = pf
         if 'friction_furniture' in d:
@@ -256,6 +267,9 @@ class BimanualGpuEnv:
                 # by U only (zeta' = zeta0 kv_f / sqrt(kp_f)); lo 0.95 keeps zeta >= 0.70 on the weakest joint (R_arm_j1 nominal 0.74) while kp keeps its full range
                 kv[:, self.arm_ids] = torch.sqrt(kp[:, self.arm_ids])*self._uni((n, len(self.arm_ids)), d['kv_g1_x_sqrt_kp'])
             g = m0['actuator_gainprm'][None].repeat(n, 1, 1); b = m0['actuator_biasprm'][None].repeat(n, 1, 1); g[:, :, 0] *= kp; b[:, :, 1] *= kp; b[:, :, 2] *= kv; mf['actuator_gainprm'][ids] = g; mf['actuator_biasprm'][ids] = b; vec[ids, 7:7+nu] = kp; vec[ids, 7+nu:7+2*nu] = kv
+        if 'frictionloss_hand' in d:   # (11-17) finger joint stiction (real Wuji hands: small steps stop short), absolute Nm, uniform per world and joint;
+            # the scene must give the finger joints a nonzero nominal frictionloss (tracker/hand_model_patch.py): constraint rows are allocated from it
+            fd = self.av[self.fing_ids]; x = self._uni((n, len(fd)), d['frictionloss_hand']); fl = m0['dof_frictionloss'][None].repeat(n, 1); fl[:, fd] = x; mf['dof_frictionloss'][ids] = fl
         if 'torque_limit' in d:
             x = self._uni((n, nu), d['torque_limit']); mf['actuator_forcerange'][ids] = m0['actuator_forcerange'][None]*x[:, :, None]; jf = m0['jnt_actfrcrange'][None].repeat(n, 1, 1); jf[:, self.act_jid] *= x[:, :, None]; mf['jnt_actfrcrange'][ids] = jf; vec[ids, 7+2*nu:7+3*nu] = x
         if 'joint_offset_g1' in d or 'joint_offset_hand' in d:
@@ -264,6 +278,11 @@ class BimanualGpuEnv:
             x = float(d['cmd_skew_s'])*(2*torch.rand(n, device=self.device, generator=self.gen_dr)-1); self.skew[ids] = torch.round(x/self.dt).long(); vec[ids, 5] = x
         if 'action_delay_steps' in d:
             lo, hi = d['action_delay_steps']; x = torch.randint(int(lo), int(hi)+1, (n,), device=self.device, generator=self.gen_dr); self.adelay[ids] = x; vec[ids, 6] = x.float(); self.a_buf[:, ids] = 0
+        if getattr(self, 'x_lag', None) is not None: vec[ids, 6] = X.arm_lag_sample(self, ids, self._uni)   # (11-17) arm dead time (ticks) in the action-delay slot
+        if 'base_z_mm' in d:
+            bzr = d['base_z_mm']; bzr = [-float(bzr), float(bzr)] if not isinstance(bzr, (list, tuple)) else [float(x) for x in bzr]   # (11-17 b) [lo, hi] mm also (real table 1.2-2.3 cm low = robot +12..+23)
+            self.base_offz[ids] = 1e-3*(bzr[0]+(bzr[1]-bzr[0])*torch.rand(n, device=self.device, generator=self.gen_dr)); mf['body_pos'][ids, self.pelvis] = m0['body_pos'][self.pelvis]
+            if not self.bz_ramp: mf['body_pos'][ids, self.pelvis, 2] = m0['body_pos'][self.pelvis, 2]+self.base_offz[ids]   # (11-17 b) offset from the reset
         if 'base_xy_mm' in d:
             self.base_off[ids] = float(d['base_xy_mm'])*1e-3*(2*torch.rand(n, 2, device=self.device, generator=self.gen_dr)-1); mf['body_pos'][ids, self.pelvis] = m0['body_pos'][self.pelvis]
         if 'object_start_xy_mm' in d:
@@ -273,6 +292,9 @@ class BimanualGpuEnv:
                 w = ids[sel]; k = len(w); a = self.obj_q[s]; r_, th = float(d['object_start_xy_mm'])*1e-3*torch.sqrt(torch.rand(k, device=self.device, generator=self.gen_dr)), 2*math.pi*torch.rand(k, device=self.device, generator=self.gen_dr)
                 self.qpos[w, a] += r_*torch.cos(th); self.qpos[w, a+1] += r_*torch.sin(th); yaw = math.radians(float(d.get('object_start_yaw_deg', 0.)))*(2*torch.rand(k, device=self.device, generator=self.gen_dr)-1)
                 c, sn = torch.cos(yaw/2), torch.sin(yaw/2); q = self.qpos[w, a+3:a+7].clone(); self.qpos[w, a+3] = c*q[:, 0]-sn*q[:, 3]; self.qpos[w, a+4] = c*q[:, 1]-sn*q[:, 2]; self.qpos[w, a+5] = c*q[:, 2]+sn*q[:, 1]; self.qpos[w, a+6] = c*q[:, 3]+sn*q[:, 0]
+
+    def _bz_weight(self, extra_s=0.):   # (11-17 b) weight of the base height offset (see bz_ramp)
+        return self._offset_weight(extra_s) if getattr(self, 'bz_ramp', True) else torch.ones(self.num_envs, device=self.device)
 
     def _offset_weight(self, extra_s=0.):
         return (((self.frame-self.start).float()*.01+extra_s)/max(self.offset_ramp, 1e-6)).clamp(0, 1)
@@ -286,6 +308,8 @@ class BimanualGpuEnv:
         for name, n in [(f'{x}[t-{i}]', nu) for i in range(H) for x in ('q_measured', 'qdot_measured', 'prev_action')]+[(f'{x}[t+{c}]', nu) for c in OFFSETS for x in ('q_reference', 'base_command')]+[('plunger_reference_m[t+%d]' % c, 1) for c in OFFSETS]+[('phase_onehot', 4), ('clip_progress', 1)]:
             lay.append({'name': name, 'start': o, 'size': n}); o += n
         self.actor_layout = lay; self.actor_dim = o
+        # (11-13) clip progress: reference.npz 'clip_progress' when the task has one (a composite reference: the progress of the source frame), else k / last
+        rp = np.load(self.task/'reference.npz'); self.clip_prog = torch.as_tensor(rp['clip_progress'], dtype=torch.float32, device=dev) if 'clip_progress' in rp.files else None
 
     def _observe_deployable(self):
         H, N, nu = self.H, self.num_envs, self.nu; k = self.frame.clamp(max=self.nframes-1); last = self.nframes-1; fresh = self.episode_length_buf == 0
@@ -294,13 +318,16 @@ class BimanualGpuEnv:
             sq = torch.where(self.finger_mask, torch.as_tensor(float(self.obs_noise.get('obs_q_std_hand', 0.)), device=self.device), torch.as_tensor(float(self.obs_noise.get('obs_q_std_g1', 0.)), device=self.device)); qm = qm+sq*torch.randn(N, nu, device=self.device, generator=self.gen_dr)
         vm = v.clone()
         if 'obs_v_std_g1' in self.obs_noise: vm = vm+float(self.obs_noise['obs_v_std_g1'])*torch.randn(N, nu, device=self.device, generator=self.gen_dr)
+        sh_ = getattr(self, 'x_stale_hold', None)
+        if sh_ is not None:   # (11-17) dr.obs_stale: the measured joints repeat their last values during a state-stream gap (finger first difference -> 0)
+            sh_ = sh_ & ~fresh; qm = torch.where(sh_[:, None], self.qm_prev, qm); vm = torch.where(sh_[:, None], self.h_v[0], vm)
         fd = (qm-self.qm_prev)/CONTROL_DT; fd[fresh] = 0.; vm[:, self.finger_mask] = fd[:, self.finger_mask]; self.qm_prev = qm.clone() if isinstance(qm, torch.Tensor) else qm   # Wuji drivers read position only: first difference at the control rate
         self.h_q = torch.roll(self.h_q, 1, 0); self.h_v = torch.roll(self.h_v, 1, 0); self.h_a = torch.roll(self.h_a, 1, 0); self.h_q[0] = qm; self.h_v[0] = vm; self.h_a[0] = self.prev_a
         self.h_q[:, fresh] = qm[fresh]; self.h_v[:, fresh] = vm[fresh]; self.h_a[:, fresh] = 0.
         parts = [x[i] for i in range(H) for x in (self.h_q, self.h_v, self.h_a)]
         for o in OFFSETS:
             j = (k+o*self.frame_step).clamp(max=last); parts += [self.q_ref_act[j], self.ctrl_frame[j]]
-        parts += [self.plunger_ref[(k+o*self.frame_step).clamp(max=last), None] for o in OFFSETS]; parts += [self.phase_1h[k], (k.float()/last)[:, None]]
+        parts += [self.plunger_ref[(k+o*self.frame_step).clamp(max=last), None] for o in OFFSETS]; parts += [self.phase_1h[k], (self.clip_prog[k] if self.clip_prog is not None else k.float()/last)[:, None]]
         parts += X.student_parts(self)
         self.obs_actor = torch.nan_to_num(torch.cat(parts, 1), 0., 0., 0.).clamp(-1e3, 1e3)
         self.obs_critic = torch.cat([self.obs, self.dr_vec], 1) if self.dr_on else self.obs
@@ -368,7 +395,9 @@ class BimanualGpuEnv:
         self.prev_a[ids] = 0
         if self.dr is not None: self._sample_dr(ids, frames)
         X.reset(self, ids); X.perturb_reset(self, ids)
-        X.holder_reset(self, ids, frames); X.gate_reset(self, ids)
+        X.holder_reset(self, ids, frames); X.gate_reset(self, ids); X.multi_reset(self, ids, frames)
+        X.lag_reset(self, ids)   # (11-17) after holder_reset (it re-anchors the arm command)
+        if getattr(self, 'x_stale', None) is not None: self.x_stale[ids] = 0
         X.measure(self, ids, frames)
         return ids
 
@@ -384,6 +413,7 @@ class BimanualGpuEnv:
             self.a_buf = torch.roll(self.a_buf, 1, 0); self.a_buf[0] = r; rapp = self.a_buf[self.adelay, self.world]
         off = self.joff*self._offset_weight(self.substeps*self.dt/2)[:, None] if self.dr is not None else None
         if self.base_off is not None: self.mf['body_pos'][:, self.pelvis, :2] = self.m0['body_pos'][self.pelvis, :2]+self.base_off*self._offset_weight(self.substeps*self.dt)[:, None]
+        if getattr(self, 'base_offz', None) is not None: self.mf['body_pos'][:, self.pelvis, 2] = self.m0['body_pos'][self.pelvis, 2]+self.base_offz*self._bz_weight(self.substeps*self.dt)
         skew = self.dr is not None and 'cmd_skew_s' in self.dr
         X.holder_step(self, self.frame.clamp(max=self.nframes-1))
         base = self.frame*self.per_frame; X.begin_step(self, rapp, base); X.perturb_step(self)   # (11-12) hand pushes (extras.perturb)
@@ -396,7 +426,7 @@ class BimanualGpuEnv:
             self._launch(self.g_step); self._fold_stats(); X.substep_end(self)   # (11-09) accumulates the actuator torque for the torque-rate terms
             if self.substep_hook is not None: self.substep_hook(s)
         self._launch(self.g_kin)
-        self.frame += X.frame_advance(self); self.episode_length_buf += 1   # (11-06) frame_step, or less while a release / closure gate holds the reference clock
+        self.frame += X.frame_advance(self); self.episode_length_buf += 1; X.multi_step(self)   # (11-06) frame_step, or less while a release / closure gate holds the reference clock
         st = self.check_overflow()
         rew, fail, reasons, info = self._reward_and_termination(r)
         end = self.frame >= self.nframes-1
@@ -408,6 +438,13 @@ class BimanualGpuEnv:
         ids = self.reset_envs(done) if self.auto_reset else done.nonzero().squeeze(-1)[:0]
         if len(ids): self._launch(self.g_kin)
         self.obs = self._observe()
+        if getattr(self, 'x_stale', None) is not None:   # (11-17) dr.obs_stale = {p, steps: [lo, hi]}: the actor's observation freezes for lo..hi control steps
+            cfg_ = self.dr['obs_stale']; st_ = self.x_stale; N_ = self.num_envs   # (real arm state stream: 90 Hz with rare ~200 ms gaps); the critic stays fresh
+            new_ = (st_ == 0) & (torch.rand(N_, device=self.device, generator=self.gen_dr) < float(cfg_['p']))
+            st_[new_] = torch.randint(int(cfg_['steps'][0]), int(cfg_['steps'][1])+1, (int(new_.sum()),), device=self.device, generator=self.gen_dr)
+            hold_ = st_ > 0
+            if self.x_obs_last is not None: self.obs = torch.where(hold_[:, None], self.x_obs_last, self.obs)
+            st_ -= hold_.long(); self.x_obs_last = self.obs.clone(); self.x_stale_hold = hold_   # (11-17) the student's encoders freeze too
         if self.obs_mode == 'deployable': self._observe_deployable()
         extras = {'time_outs': torch.zeros_like(done), 'log': {}, 'success': success, 'fail': fail, 'reasons': reasons, 'info': info, 'stats': st}
         return self.obs, rew, done, extras
@@ -444,6 +481,9 @@ class BimanualGpuEnv:
             v = self.qvel[:, self.obj_v[s]:self.obj_v[s]+6]
             conds = torch.stack([pos > .05, ang > math.pi/4, axis_err.max(1).values > .05, wpos > .05, wang > math.pi/4,
                                  O[:, 2, 3] < .06, v[:, :3].norm(dim=-1) > 10, v[:, 3:].norm(dim=-1) > 500, ~finite], 1)
+            if s == 'right' and getattr(self, 'x_trelax', None) is not None:   # (11-17) regrasp window: only a real drop terminates
+                g = self.x_trelax[k]; drop = (O[:, :3, 3]-W[:, :3, 3]).norm(dim=-1) > float(self.xcfg['term_relax'].get('drop_dist_m', .16))
+                conds = torch.cat([torch.where(g, drop, conds[:, 0])[:, None], conds[:, 1:5] & ~g[:, None], conds[:, 5:]], 1)
             any_ = conds.any(1); first = torch.argmax(conds.int(), 1)
             reasons[:, j] = torch.where(any_, first+1, 0)
             info[s] = dict(object_position_m=wpos, object_orientation_rad=wang, relative_position_m=pos, axis_mean_m=axis_err.mean(1),

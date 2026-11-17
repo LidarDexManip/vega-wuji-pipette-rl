@@ -74,6 +74,9 @@ voc = float(state.get('voc_scale', TR.get('voc_start', 0.))); succ_win = []; its
 PR = TR.get('perturb_ramp_steps'); P0 = float((C['extras'].get('perturb') or {}).get('scale', 1.))   # (11-12) hand pushes ramped in over env steps [s0, s1]
 def push_scale(steps): return P0 if not PR else P0*min(1., max(0., (steps-float(PR[0]))/max(1., float(PR[1])-float(PR[0]))))
 if getattr(env, 'x_pert', None) is not None: env.x_pert['scale'] = push_scale(state['env_steps'])
+FRS = TR.get('fine_ramp_steps')   # (11-16) curriculum of the FINE kernels of the in-hand / upright terms (vega_extras.mix_kern): 0 -> 1 over env steps [s0, s1]
+def fine_r(steps): return 1. if not FRS else min(1., max(0., (steps-float(FRS[0]))/max(1., float(FRS[1])-float(FRS[0]))))
+env.x_fine_r = fine_r(state['env_steps'])
 
 
 def save_ckpt(path):
@@ -108,6 +111,7 @@ try:
                'contact_peak': env.stats_peak.tolist(), 'nonfinite_worlds': int(nf[0]), 'vram_gb': round(torch.cuda.max_memory_allocated()/2**30, 2)}
         row['voc_scale'] = voc; row['free_success_fraction'] = fs['success_fraction']; row['free_episodes'] = fs['episodes']
         if getattr(env, 'x_pert', None) is not None: row.update(E.X.perturb_stats(env)); env.x_pert['scale'] = push_scale(state['env_steps'])   # (11-12)
+        if FRS: env.x_fine_r = fine_r(state['env_steps']); row['fine_r'] = env.x_fine_r   # (11-16)
         succ_win = (succ_win+[row['success_fraction']])[-int(CUR.get('window_its', 5)):]; its_at_level += 1
         if voc > 0 and its_at_level >= int(CUR.get('min_its_per_level', 20)) and len(succ_win) == int(CUR.get('window_its', 5)) and min(succ_win) >= float(CUR.get('success_threshold', .6)):
             voc = voc*float(CUR.get('factor', .8)); voc = 0. if voc < float(CUR.get('floor', .05)) else voc; env.set_voc(voc); its_at_level = 0; succ_win = []
