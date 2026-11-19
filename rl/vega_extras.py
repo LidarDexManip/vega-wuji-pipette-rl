@@ -82,7 +82,7 @@ def init(env, cfg):
             if b in pip: gs[g] = 0
             elif b in tube: gs[g] = 1
         env.x_gl, env.x_gs = torch.as_tensor(gl, device=dev), torch.as_tensor(gs, device=dev)
-        env.x_lside = torch.as_tensor(z['side_of_link'], device=dev).long(); env.x_L = len(links)
+        env.x_lside = torch.as_tensor(z['side_of_link'], device=dev).long(); env.x_L = len(links); env.x_link_names = links
         env.x_mass = torch.as_tensor([sum(m.body_mass[b] for b in pip), sum(m.body_mass[b] for b in tube)], dtype=torch.float32, device=dev)
         env.x_objb = torch.as_tensor([m.body('right_object').id, m.body('left_object').id], device=dev)
         tt = env.wp.to_torch; d = env.d
@@ -154,6 +154,37 @@ def reset(env, ids):
         env.x_kvalid[ids] = False; env.x_kon[ids] = False; env.x_mdreq[ids] = 0; env.x_mdmean[ids] = 0
 
 
+def arm_freeze(env, r):
+    """(11-18 g) extras.arm_freeze = {from_s, ramp_s}: the arm residual (both arms) ramps to 0 over [from_s - ramp_s, from_s] and stays 0, so
+    from from_s the arms execute the reference command alone (finger-only regrasp task: the reference arm is constant there). In place on r."""
+    f = arm_freeze_w(env)
+    if f is None: return r
+    r[:, env.x_arm] = r[:, env.x_arm]*f[:, None]; return r
+
+
+def arm_freeze_w(env):
+    """per-world weight of the policy's arm output under extras.arm_freeze: 1 before from_s - ramp_s, 0 from from_s on (None: no freeze)"""
+    C = env.xcfg.get('arm_freeze')
+    if not C: return None
+    if getattr(env, 'x_afz', None) is None:
+        t = torch.arange(env.nframes, device=env.device).float()*.01
+        env.x_afz = ((float(C['from_s'])-t)/max(float(C.get('ramp_s', .5)), 1e-6)).clamp(0, 1)
+    return env.x_afz[env.frame.clamp(max=env.nframes-1)]
+
+
+def direct_arm_freeze(env, dc):
+    """(11-19, user: "make sure that the arm and wrist keep static when grasping") direct-student worlds under extras.arm_freeze (unless
+    arm_freeze.direct is false): the student's ARM command is blended (same ramp as the teacher's residual) into the reference arm command with
+    zero residual (+ re-anchoring delta + frozen alignment servo = direct_label of a zero action), so from from_s the arm streams the reference
+    alone, exactly as the teacher's arm does. The real runtime must do the same (ignore the arm outputs from from_s). Returns a new tensor."""
+    C = env.xcfg.get('arm_freeze')
+    if not C or not C.get('direct', True): return dc
+    f = arm_freeze_w(env)
+    if not bool((f < 1).any()): return dc
+    lab = direct_label(env, torch.zeros_like(dc)); dc = dc.clone(); ia = env.x_arm
+    dc[:, ia] = f[:, None]*dc[:, ia]+(1-f)[:, None]*lab[:, ia]; return dc
+
+
 def smooth_residual(env, r):
     al = env.xcfg['ema_alpha']
     if al is None: return r
@@ -172,6 +203,7 @@ def arm_command(env, cmd):
     kv/kp qdot + tau_ff/kp); velocity feedforward added for the residual's slope only, capped at speed_cap."""
     X = env.xcfg
     if getattr(env, 'x_hold', None): cmd = cmd+env.x_hdelta
+    if getattr(env, 'x_servo_app', None) is not None: cmd = cmd+env.x_servo_app   # (11-18 e) the teacher's alignment servo (0 for direct-student worlds)
     if not X['real_cmd']: return cmd
     ia = env.x_arm; hz = X.get('cmd_hz')
     if not hz:
@@ -188,6 +220,7 @@ def arm_command(env, cmd):
         q = q.clamp(env.x_alo, env.x_ahi); lim = X['speed_cap']*hold*env.dt
         q = env.x_prev_arm+(q-env.x_prev_arm).clamp(-lim, lim); env.x_prev_arm = q; env.x_tickq = q
         v = v.clamp(-X['speed_cap'], X['speed_cap'])
+        if getattr(env, 'x_dmask', None) is not None: v = torch.where(env.x_dmask[:, None], torch.zeros_like(v), v)   # (11-18) direct student
         env.x_tick = q+env.x_ffr*v if X['vel_ff'] else q
         # (11-06 round 3) the sim actuator is position-only, so the velocity feed-forward lands in the position target: clamp AFTER adding it,
         # so the commanded target itself keeps >= margin_rad from every arm limit (round 1/2: clamp(q) + ff reached 5.24 deg < 5.73 deg)
@@ -407,6 +440,14 @@ def reward(env, r, k):
         cur_ = contacts(env)[0]; nl_ = (cur_ & (env.x_lside == 0)[None]).sum(1)
         pen['min_contacts'] = torch.where(env.x_mcwin[k], (int(mc_.get('links', 2))-nl_).clamp(min=0).float(), torch.zeros(N, device=dev))
         terms['_links_on_pipette'] = torch.where(env.x_mcwin[k], nl_.float(), torch.zeros(N, device=dev))
+    if float(Wt.get('finger_contacts', 0.)) > 0 and env.x_cref is not None:   # (11-20 d, user: "each finger should be encouraged to make more contacts")
+        fcc_ = X.get('finger_contacts_cfg', {}) or {}                       # reward = fraction of the 5 right-hand fingers with >= 1 link pressing on the
+        if getattr(env, 'x_fcwin', None) is None:                          # pipette (force > force_alpha x weight), in [from_s, to_s] (reference time)
+            t_ = np.asarray(env.times); env.x_fcwin = torch.as_tensor((t_ >= float(fcc_.get('from_s', 6.5))) & (t_ <= float(fcc_.get('to_s', 1e9))), device=dev)
+            env.x_fcmap = torch.stack([torch.as_tensor([n_.startswith(f'right_{f_}_') for n_ in env.x_link_names], device=dev) for f_ in ('thumb', 'index_finger', 'middle_finger', 'ring_finger', 'pinky')]).float()
+        on_ = ((contacts(env)[0].float()@env.x_fcmap.T) > 0).float()
+        terms['finger_contacts'] = torch.where(env.x_fcwin[k], on_.mean(1), torch.zeros(N, device=dev))
+        terms['_fingers_on_pipette'] = torch.where(env.x_fcwin[k], on_.sum(1), torch.zeros(N, device=dev))
     pen['action_rate'] = action_rate_term(env, r)
     pen.update(torque_rate_terms(env))                                                       # (11-09)
     pen['elbow_height'] = RW.elbow_above_shoulder(env.xpos[:, env.x_elbow, 2], env.xpos[:, env.x_shoulder, 2], 0.)
@@ -867,6 +908,25 @@ def student_init(env):
     m = env.mjm; dev = env.device
     env.x_objq = {s: int(m.jnt_qposadr[m.joint(n).id]) for s, n in (('right', 'right_object_joint'), ('left', 'left_object_joint'))}
     env.x_meas = torch.zeros(env.num_envs, 14, device=dev); env.x_hd_seen = torch.zeros(env.num_envs, len(env.x_arm), device=dev)
+    env.x_noref = sc.get('obs') == 'no_ref'; env.x_noprev = sc.get('prev_out', True) is False   # (11-18 f) prev_out false: zero previous-output inputs
+    env.x_prevnoise = float(sc.get('prev_out_noise', 0.))   # (11-18 f) N(0, s) on each new previous-output input (normalised units): no exact copying, the
+                                                            # history still tells the commanded-vs-measured offset that closed-loop correction needs
+    if env.x_noref:
+        # (11-18, user: "it just needs (x, y, z) where the pipette is roughly located") actor input = joint history + episode progress + the
+        # head camera's rough pipette position (+ the wrist depth images): no reference tables, no holder offsets, no wrist reference. The arm
+        # command is still the reference re-anchored with the same estimate (the residual alone reaches ~28 mm). Position: the pipette body origin
+        # at its table place, in the robot base frame (base_link at its nominal pose), the stand estimate (dm, thm) applied to the nominal place
+        # and z shifted by the measured table height (holder dzm); measured once at the episode start, also for episodes started mid-task.
+        assert getattr(env, 'actor_layout', None) is not None and getattr(env, 'x_hold', None) and 'stand' in env.x_hold, 'no_ref: deployable obs + extras.holder'
+        import mujoco; d_ = mujoco.MjData(m); d_.qpos[:] = env.qpos_ref[0].cpu().numpy(); mujoco.mj_kinematics(m, d_); b_ = m.body('base_link').id
+        env.x_base_T = (torch.as_tensor(d_.xpos[b_], dtype=torch.float32, device=dev), torch.as_tensor(d_.xmat[b_].reshape(3, 3), dtype=torch.float32, device=dev))
+        a_ = env.x_objq['right']; env.x_pip0 = env.qpos_ref[0, a_:a_+3].float().clone(); env.x_pxyz = torch.zeros(env.num_envs, 3, device=dev)
+        Rb_, cb_ = env.x_base_T[1], env.x_base_T[0]; env.x_pxyz_nominal = (Rb_.T@(env.x_pip0-cb_)).tolist()
+        lay = [{'name': n_, 'start': i*env.nu, 'size': env.nu} for i, n_ in enumerate(f'{x}[t-{i}]' for i in range(env.H) for x in ('q_measured', 'qdot_measured', 'prev_action'))]
+        o = len(lay)*env.nu; lay.append({'name': 'clip_progress', 'start': o, 'size': 1}); o += 1
+        lay.append({'name': 'pipette_xyz_est_base_m (head camera, once at the start; nominal %s)' % [round(x, 4) for x in env.x_pxyz_nominal], 'start': o, 'size': 3}); o += 3
+        env.actor_layout = lay; env.actor_dim = o
+        direct_init(env); depth_init(env); return
     if getattr(env, 'actor_layout', None) is not None:
         o = env.actor_dim
         extra = [(f'wrist_ref_rel_{s}[t+{c}] (pos 3, rot cols 6)', 9) for c in WRIST_REF_OFFSETS for s in ('right', 'left')] if sc.get('wrist_ref') else []
@@ -910,6 +970,11 @@ def measure(env, ids, frames):
         if getattr(env, 'x_hold', None): h = env.x_hold[nm]; out += [h['dm'][ids], h['thm'][ids][:, None]]
         else: out += [sp*torch.randn(n, 2, device=dev, generator=g), sy*torch.randn(n, 1, device=dev, generator=g)]
     env.x_meas[ids] = torch.cat(out, 1)
+    if getattr(env, 'x_noref', False):   # (11-18) the rough pipette position (student_init, no_ref)
+        h = env.x_hold['stand']; Tm = _H(torch.ones(n, device=dev), h['dm'][ids], h['thm'][ids], h['c'])
+        pm = (Tm[:, :3, :3]@env.x_pip0[None, :, None])[..., 0]+Tm[:, :3, 3]
+        if h.get('dzm') is not None: pm[:, 2] = pm[:, 2]+h['dzm'][ids]
+        cb_, Rb_ = env.x_base_T; env.x_pxyz[ids] = (pm-cb_[None])@Rb_
 
 
 WRIST_REF_OFFSETS = (0, 2, 5, 12)   # = vega_res_env.OFFSETS (control steps)
@@ -918,6 +983,7 @@ WRIST_REF_OFFSETS = (0, 2, 5, 12)   # = vega_res_env.OFFSETS (control steps)
 def student_parts(env):
     if getattr(env, 'x_meas', None) is None: return []
     depth_update(env)   # (11-10) renders every cfg.every calls; the image lives in env.x_depth['obs'], not in the vector
+    if getattr(env, 'x_noref', False): return [env.x_pxyz]
     XS = getattr(env, 'x_scan', None)
     if XS is not None and XS['obs'] == 'embedding': return [XS['emb'][XS['j']]]
     hd = env.x_hdelta[:, env.x_arm] if getattr(env, 'x_hold', None) else torch.zeros(env.num_envs, len(env.x_arm), device=env.device)
@@ -936,6 +1002,104 @@ def student_parts(env):
                 rel = Wm[s]@holder_T(env, 'stand' if s == 'right' else 'rack', j, meas=True)@env.W_ref[s][j]
                 out += [rel[:, :3, 3], rel[:, :3, :2].flatten(1)]
     return out
+
+
+
+
+# ---------------------------------------------------------------------------------------------- (11-18 e) teacher alignment servo
+# extras.align_servo = {from_s, to_s (default: event_gate.descent_s), gain, max_rad}. The gate alone did not teach the teacher to align before
+# the descent (in sim the grasp tolerates 10 mm; even a perfect re-anchoring with the true placement leaves 6.8 mm p50 from the arm's own DR --
+# gains, encoder offsets, base, tilt -- and the arm-band penalty charges every correction), so the TEACHER gets a privileged closed-loop servo:
+# in [from, to) (incl. the gate hold) the right-arm command gets an integral correction toward the wrist pose re-anchored with the TRUE placement,
+# measured on the TRUE wrist: dq += gain x IK(D . FK(q_cmd)) - q_cmd, D = W_target W^-1 (gain 0.04 / control step: ~0.5 s time constant, ~50 deg
+# phase margin with the arm lag). Frozen from the gate, scaled by the holder weight (fades after the lift like the re-anchoring). Starts at or after
+# from_s begin at the open-loop value (true minus measured re-anchoring). It runs in every world; it is APPLIED only where the teacher drives
+# (x_dmask False / None) and it is part of the teacher's absolute command (direct_label: x_servo_lab), so a direct student learns the alignment.
+def _servo_cfg(env):
+    if not hasattr(env, 'x_servo'):
+        S = env.xcfg.get('align_servo'); env.x_servo = None
+        if S and getattr(env, 'x_hold', None):
+            G = env.xcfg.get('event_gate') or {}
+            env.x_servo = {'from': int(round(float(S['from_s'])*100)), 'to': int(round(float(S.get('to_s', G.get('descent_s', 4.33)))*100)),
+                           'gain': float(S.get('gain', .04)), 'max': float(S.get('max_rad', .2)), 'pred': bool(S.get('pred', True))}
+            env.x_servo_dq = torch.zeros(env.num_envs, env.nu, device=env.device); env.x_servo_lab = torch.zeros_like(env.x_servo_dq)
+            env.x_servo_app = torch.zeros_like(env.x_servo_dq)
+    return env.x_servo
+
+
+def _servo_apply(env, k):
+    w = env.x_hold['stand']['w'][k]; env.x_servo_lab = env.x_servo_dq*w[:, None]; dm = getattr(env, 'x_dmask', None)
+    env.x_servo_app = env.x_servo_lab if dm is None else torch.where(dm[:, None], torch.zeros_like(env.x_servo_lab), env.x_servo_lab)
+
+
+def servo_reset(env, ids, frames):
+    S = _servo_cfg(env)
+    if S is None or not len(ids): return
+    env.x_servo_dq[ids] = 0.; late = frames >= S['from']
+    if bool(late.any()):   # open-loop start value: true minus measured re-anchoring at the start command
+        i2, f2 = ids[late], frames[late]; c = env.cmd_sim[(f2*env.per_frame).clamp(max=len(env.cmd_sim)-1)]
+        Ht = {nm: holder_T(env, nm, f2, i2) for nm in env.x_hold}; Hm = {nm: holder_T(env, nm, f2, i2, meas=True) for nm in env.x_hold}
+        if getattr(env, 'base_offz', None) is not None and not getattr(env, 'bz_ramp', True):
+            T_ = Ht['stand'].clone(); T_[:, 2, 3] = T_[:, 2, 3]-env.x_hold['stand']['w'][f2]*env.base_offz[i2]; Ht['stand'] = T_
+        dq = _arm_delta(env, c, Ht)-_arm_delta(env, c, Hm); cols = env.x_arm_side['R']
+        z = torch.zeros_like(dq); z[:, cols] = dq[:, cols].clamp(-S['max'], S['max']); env.x_servo_dq[i2] = z
+    _servo_apply(env, env.frame.clamp(max=env.nframes-1))
+    add = env.x_servo_app[ids]; ia = env.x_arm   # the reset command already includes it (no rate-limited jump at the start)
+    env.ctrl[ids] = torch.maximum(torch.minimum(env.ctrl[ids]+add, env.hi), env.lo)
+    env.x_prev_arm[ids] = env.x_prev_arm[ids]+add[:, ia]; env.x_tick[ids] = env.x_tick[ids]+add[:, ia]; env.x_tickq[ids] = env.x_tickq[ids]+add[:, ia]
+
+
+def servo_step(env, k):
+    S = _servo_cfg(env)
+    if S is None: return
+    win = (k >= S['from']) & (k < S['to'])
+    if bool(win.any()):
+        w_ = win.nonzero().squeeze(-1); cols = env.x_arm_side['R']; kw = k[w_]
+        Wt = holder_T(env, 'stand', kw, w_)@env.W_ref['right'][kw]; W = env._poses('right')[0][w_]
+        row = (kw*env.per_frame).clamp(max=len(env.cmd_sim)-1); qs = (env.cmd_sim[row]+env.x_hdelta[w_]+env.x_servo_lab[w_])[:, cols]
+        dm = getattr(env, 'x_dmask', None)
+        if S['pred'] and dm is not None and bool(dm[w_].any()) and getattr(env, 'x_tick', None) is not None:
+            # (11-18 f) direct-student worlds: the student does not execute this label, so integrating ITS wrist error wound the label up (32 mm
+            # median at the gate vs 7 mm when the teacher drives). Use the wrist pose the LABEL command would give instead: this world's
+            # command -> wrist offset (actual wrist vs FK of the lagged executed arm command + joint offset) applied to FK of the label command.
+            # The integral then converges to the teacher's own fixed point whatever the student does.
+            if 'rpos' not in S: ia = env.x_arm.tolist(); S['rpos'] = torch.as_tensor([ia.index(c) for c in cols.tolist()], device=env.device)
+            ql = env.x_tick[w_][:, S['rpos']]
+            if env.dr is not None and getattr(env, 'joff', None) is not None: ql = ql+(env.joff*env._offset_weight(env.substeps*env.dt/2)[:, None])[w_][:, cols]
+            Wp = W@torch.linalg.inv(env.x_ik.fk('R', ql))@env.x_ik.fk('R', qs); W = torch.where(dm[w_][:, None, None], Wp, W)
+        D = Wt@torch.linalg.inv(W)
+        q, _, _ = env.x_ik.solve('R', D@env.x_ik.fk('R', qs), qs, qs, iters=4, margin=0.)
+        dq = env.x_servo_dq[w_]; dq[:, cols] = (dq[:, cols]+S['gain']*(q-qs)).clamp(-S['max'], S['max']); env.x_servo_dq[w_] = dq
+    _servo_apply(env, k)
+
+
+# ---------------------------------------------------------------------------------------------- (11-18) direct student
+# extras.student.direct = true (with obs 'no_ref'; user: "don't do residual, do direct"): the student outputs the ABSOLUTE actuator command
+# (normalised: cmd = x_dmu + x_dsd * y, constants from the reference command, stored in the checkpoint) plus one "go" logit for the descent gate.
+# The env executes it for the worlds in env.x_dmask (distill: the student-driven ones) the way the real streamer would: EMA (ema_alpha) on the
+# command, linear 100 Hz upsampling previous -> current, the arm speed cap / limits / lag model, no velocity feed-forward (the teacher's command
+# already carries its own), the joint-offset DR as for every command; no reference command, no re-anchoring delta. Teacher-driven worlds run
+# the residual path; the student's label is the teacher's command as an absolute one (direct_label). prev_action (student input) = the
+# normalised command of the step (all worlds).
+def direct_init(env):
+    sc = env.xcfg.get('student') or {}; env.x_direct = bool(sc.get('direct')); env.x_dmask = None
+    if not env.x_direct: return
+    dev = env.device; c = env.cmd_sim.float()
+    env.x_dmu = c.mean(0); env.x_dsd = c.std(0).clamp(min=float(sc.get('direct_sd_min', .05)))
+    env.x_dema = torch.zeros(env.num_envs, env.nu, device=dev); env.x_dprev = torch.zeros_like(env.x_dema); env.x_dcmd = torch.zeros_like(env.x_dema)
+
+
+def direct_label(env, a):
+    """the absolute command that residual action a stands for at this control step: reference command at the step's last physics row + holder
+    re-anchoring delta + scaled residual (thumb press scaling as in step); clamped to the actuator range"""
+    r = a.clamp(-1, 1)*env.scale
+    if env.thumb_press_scale is not None:
+        inp = env.press[env.frame.clamp(max=env.nframes-1)]; r[:, env.rthumb] = torch.where(inp[:, None], r[:, env.rthumb]*env.thumb_press_scale, r[:, env.rthumb])
+    r = arm_freeze(env, r)   # (11-18 g)
+    row = (env.frame*env.per_frame+env.substeps-1).clamp(max=len(env.cmd_sim)-1); c = env.cmd_sim[row]+r
+    if getattr(env, 'x_hold', None): c = c+env.x_hdelta
+    if getattr(env, 'x_servo_lab', None) is not None: c = c+env.x_servo_lab   # (11-18 e) the teacher's command includes its alignment servo
+    return torch.maximum(torch.minimum(c, env.hi), env.lo)
 
 
 # ---------------------------------------------------------------------------------------------- event gate (11-06 round 3, default off)
@@ -959,8 +1123,13 @@ def _gate_init(env):
         if f is not None: ev.append(('left', f, 'release'))
         st = np.flatnonzero(np.diff(np.r_[0, r['gate_pipette_in_stand'].astype(int)]) == 1)
         if len(st) > 1: ev.append(('right', int(st[1]), 'release'))
+    if 'descent' in G.get('events', []):   # (11-18) before the descent onto the pipette (G['descent_s'], reference time; v16: 4.33 s)
+        ev.append(('right', int(round(float(G['descent_s'])*100)), 'descent'))
     env.x_gate = {'events': ev, 'held': torch.zeros(env.num_envs, len(ev), dtype=torch.long, device=dev), 'tol_m': float(G.get('tol_mm', 3.))*1e-3,
-                  'tol_rad': math.radians(float(G.get('tol_deg', 3.))), 'cap': int(round(float(G.get('cap_s', 1.))/CONTROL_DT_GATE))}
+                  'tol_rad': math.radians(float(G.get('tol_deg', 3.))), 'cap': int(round(float(G.get('cap_s', 1.))/CONTROL_DT_GATE)), 'truth': bool(G.get('truth', False))}
+    env.x_gate_hold = torch.zeros(env.num_envs, dtype=torch.bool, device=dev); env.x_go = None
+    gd = [g for (_, g, kd) in ev if kd == 'descent']; env.x_gate['g_descent'] = gd[0] if gd else None   # (11-18 d) alignment shaping (vega_res_env)
+    env.x_gate['align_w'] = float(G.get('align_w', 0.)); env.x_gate['align_from'] = int(round(float(G.get('align_from_s', 0.))*100))
 
 
 CONTROL_DT_GATE = .02
@@ -973,16 +1142,38 @@ def frame_advance(env):
     if not hasattr(env, 'x_gate'): _gate_init(env)
     G = env.x_gate
     if G is None: return step
-    inc = torch.full_like(env.frame, step)
+    inc = torch.full_like(env.frame, step); env.x_gate_hold = torch.zeros_like(env.x_gate_hold)
     for e, (side, g, kind) in enumerate(G['events']):
         cross = (env.frame < g) & (env.frame+step >= g)
         if not bool(cross.any()): continue
-        gk = torch.full_like(env.frame, g); Wt = env.W_ref[side][gk]
-        if getattr(env, 'x_hold', None): Wt = holder_T(env, 'stand' if side == 'right' else 'rack', gk, meas=True)@Wt   # the robot's own holder estimate
-        W, _ = env._poses(side); pe = (W[:, :3, 3]-Wt[:, :3, 3]).norm(dim=-1); ae = rot_angle_(W[:, :3, :3], Wt[:, :3, :3])
-        hold = cross & ((pe > G['tol_m']) | (ae > G['tol_rad'])) & (G['held'][:, e] < G['cap'])
-        G['held'][:, e] += hold.long(); inc = torch.where(hold, (g-1-env.frame).clamp(min=0), inc)
+        ok = gate_aligned(env, side, g)
+        go = getattr(env, 'x_go', None); dm = getattr(env, 'x_dmask', None)
+        if kind == 'descent' and go is not None and dm is not None: ok = torch.where(dm, go, ok)   # (11-18) student-driven worlds: the student's own "go"
+        hold = cross & ~ok & (G['held'][:, e] < G['cap'])
+        G['held'][:, e] += hold.long(); inc = torch.where(hold, (g-1-env.frame).clamp(min=0), inc); env.x_gate_hold |= hold
     return inc
+
+
+def gate_aligned(env, side, g):
+    """wrist within tol of its pose at event frame g. truth (11-18): that pose re-anchored with the TRUE placement (hand vs the real pipette;
+    privileged: the teacher's gate and the student's "go" label); else with the robot's own holder estimate (arm caught up with its command)"""
+    G = env.x_gate; gk = torch.full_like(env.frame, g); Wt = env.W_ref[side][gk]
+    if getattr(env, 'x_hold', None): Wt = holder_T(env, 'stand' if side == 'right' else 'rack', gk, meas=not G['truth'])@Wt
+    W, _ = env._poses(side); pe = (W[:, :3, 3]-Wt[:, :3, 3]).norm(dim=-1); ae = rot_angle_(W[:, :3, :3], Wt[:, :3, :3])
+    env.x_gate_err = (pe, ae)
+    return (pe <= G['tol_m']) & (ae <= G['tol_rad'])
+
+
+def gate_label(env):
+    """(11-18) for the student's "go" output at the current observation: (at the descent gate, may still hold) and (aligned, truth)"""
+    if not hasattr(env, 'x_gate'): _gate_init(env)
+    G = env.x_gate
+    if G is None: return None, None
+    for e, (side, g, kind) in enumerate(G['events']):
+        if kind != 'descent': continue
+        at = (env.frame < g) & (env.frame+env.frame_step >= g) & (G['held'][:, e] < G['cap'])
+        return at, gate_aligned(env, side, g)
+    return None, None
 
 
 def rot_angle_(A, B):
@@ -1339,6 +1530,11 @@ def term_relax_init(env):
     """extras.term_relax = {from_s, to_s, drop_dist_m}: over that reference-time window the right object's deviation terminations (relative /
     world position, orientation, axis points vs the reference) are replaced by a real drop: object farther than drop_dist_m from the wrist.
     (The swing regrasp trips the 5 cm / 45 deg tests transiently while the pipette stays in the hand: PPO v12 58 flagged, 2 real drops.)"""
+    # (11-18) extras.rel_term = {from_s}: the right object's RELATIVE checks (pipette vs the wrist: position, orientation, axis points) only from
+    # from_s on (v16: the end of the descent); before, only the world-frame checks (pipette knocked away). With the ready pose ~25 cm from the
+    # pipette, the head-camera estimate error (10 mm / 3 deg, levered by the distance) tripped the 5 cm relative test at t = 0 in ~5 % of worlds.
+    R_ = env.xcfg.get('rel_term'); env.x_relgate = None
+    if R_: env.x_relgate = torch.as_tensor(np.asarray(env.times) >= float(R_.get('from_s', 0.)), device=env.device)
     C = env.xcfg.get('term_relax'); env.x_trelax = None
     if not C: return
     t = np.asarray(env.times); env.x_trelax = torch.as_tensor((t >= float(C['from_s'])) & (t <= float(C['to_s'])), device=env.device)

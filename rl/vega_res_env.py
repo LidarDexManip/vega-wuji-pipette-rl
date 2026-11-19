@@ -222,6 +222,9 @@ class BimanualGpuEnv:
         joint_offset_g1 / joint_offset_hand (rad, +- per joint per episode: encoder zero error, ramped in over offset_ramp_s from a reset), cmd_skew_s (hand command vs arm command, +- s per episode), action_delay_steps [lo, hi] (control steps on the residual only),
         obs_q_std_g1, obs_q_std_hand, obs_v_std_g1 (actor observation noise), object_start_xy_mm, object_start_yaw_deg (object in its rack / stand before its first grasp), base_xy_mm (robot base vs world, +- per axis, ramped), arm_gains {kp: [nu], kv: [nu]} (absolute gains on the waist and arm actuators, before the factors)."""
         if not self.dr_on: raise RuntimeError('env built without dr')
+        if 'torsion_hand_object' in dr and len(self.pair_ho):   # (11-18) torsional friction of the hand-object pairs [m], before the friction factor
+            if not hasattr(self, 'm0_tors'): self.m0_tors = self.m0['pair_friction'][self.pair_ho, 2].clone()
+            self.m0['pair_friction'][self.pair_ho, 2] = float(dr['torsion_hand_object'])   # (scene: 0.15 = ~40x a fingertip patch radius)
         for k, v in self.mf.items(): v[:] = self.m0[k]
         self.dr = dict(dr); self.gen_dr.manual_seed(seed); self.joff.zero_(); self.skew.zero_(); self.adelay.zero_(); self.dr_vec.zero_(); self.base_off = None
         self.offset_ramp = float(dr.get('offset_ramp_s', .5)); self.obs_noise = {k: dr[k] for k in ('obs_q_std_g1', 'obs_q_std_hand', 'obs_v_std_g1') if k in dr}
@@ -323,11 +326,16 @@ class BimanualGpuEnv:
             sh_ = sh_ & ~fresh; qm = torch.where(sh_[:, None], self.qm_prev, qm); vm = torch.where(sh_[:, None], self.h_v[0], vm)
         fd = (qm-self.qm_prev)/CONTROL_DT; fd[fresh] = 0.; vm[:, self.finger_mask] = fd[:, self.finger_mask]; self.qm_prev = qm.clone() if isinstance(qm, torch.Tensor) else qm   # Wuji drivers read position only: first difference at the control rate
         self.h_q = torch.roll(self.h_q, 1, 0); self.h_v = torch.roll(self.h_v, 1, 0); self.h_a = torch.roll(self.h_a, 1, 0); self.h_q[0] = qm; self.h_v[0] = vm; self.h_a[0] = self.prev_a
-        self.h_q[:, fresh] = qm[fresh]; self.h_v[:, fresh] = vm[fresh]; self.h_a[:, fresh] = 0.
-        parts = [x[i] for i in range(H) for x in (self.h_q, self.h_v, self.h_a)]
-        for o in OFFSETS:
-            j = (k+o*self.frame_step).clamp(max=last); parts += [self.q_ref_act[j], self.ctrl_frame[j]]
-        parts += [self.plunger_ref[(k+o*self.frame_step).clamp(max=last), None] for o in OFFSETS]; parts += [self.phase_1h[k], (self.clip_prog[k] if self.clip_prog is not None else k.float()/last)[:, None]]
+        self.h_q[:, fresh] = qm[fresh]; self.h_v[:, fresh] = vm[fresh]; self.h_a[:, fresh] = self.prev_a[fresh] if getattr(self, 'x_direct', False) else 0.
+        if getattr(self, 'x_prevnoise', 0.): self.h_a[0] += self.x_prevnoise*torch.randn(N, nu, device=self.device, generator=self.gen_dr)   # (11-18 f) prev_out_noise
+        if getattr(self, 'x_noprev', False): self.h_a.zero_()   # (11-18 f) extras.student.prev_out false: no previous-output inputs (they invited copying its own
+        parts = [x[i] for i in range(H) for x in (self.h_q, self.h_v, self.h_a)]   # output: jitter fed back, 6-11 cm off the teacher's states); same layout, zeros
+        if getattr(self, 'x_noref', False):   # (11-18) extras.student.obs 'no_ref': no reference inputs, only the episode progress (vega_extras.student_init)
+            parts.append((self.clip_prog[k] if self.clip_prog is not None else k.float()/last)[:, None])
+        else:
+            for o in OFFSETS:
+                j = (k+o*self.frame_step).clamp(max=last); parts += [self.q_ref_act[j], self.ctrl_frame[j]]
+            parts += [self.plunger_ref[(k+o*self.frame_step).clamp(max=last), None] for o in OFFSETS]; parts += [self.phase_1h[k], (self.clip_prog[k] if self.clip_prog is not None else k.float()/last)[:, None]]
         parts += X.student_parts(self)
         self.obs_actor = torch.nan_to_num(torch.cat(parts, 1), 0., 0., 0.).clamp(-1e3, 1e3)
         self.obs_critic = torch.cat([self.obs, self.dr_vec], 1) if self.dr_on else self.obs
@@ -395,10 +403,11 @@ class BimanualGpuEnv:
         self.prev_a[ids] = 0
         if self.dr is not None: self._sample_dr(ids, frames)
         X.reset(self, ids); X.perturb_reset(self, ids)
-        X.holder_reset(self, ids, frames); X.gate_reset(self, ids); X.multi_reset(self, ids, frames)
+        X.holder_reset(self, ids, frames); X.servo_reset(self, ids, frames); X.gate_reset(self, ids); X.multi_reset(self, ids, frames)
         X.lag_reset(self, ids)   # (11-17) after holder_reset (it re-anchors the arm command)
         if getattr(self, 'x_stale', None) is not None: self.x_stale[ids] = 0
         X.measure(self, ids, frames)
+        if getattr(self, 'x_direct', False): self.prev_a[ids] = (self.ctrl[ids]-self.x_dmu)/self.x_dsd   # (11-18) direct student: previous output = the start command
         return ids
 
     def step(self, actions):
@@ -406,7 +415,7 @@ class BimanualGpuEnv:
         r = a*self.scale
         if self.thumb_press_scale is not None:
             inp = self.press[self.frame.clamp(max=self.nframes-1)]; r[:, self.rthumb] = torch.where(inp[:, None], r[:, self.rthumb]*self.thumb_press_scale, r[:, self.rthumb])
-        r = X.smooth_residual(self, r)
+        r = X.smooth_residual(self, X.arm_freeze(self, r))   # (11-18 g) extras.arm_freeze: no arm residual from from_s on
         self.res = r; self.prev_a = a
         rapp = r
         if self.dr is not None and self.a_buf is not None:   # (11-05) residual latency in control steps
@@ -415,12 +424,24 @@ class BimanualGpuEnv:
         if self.base_off is not None: self.mf['body_pos'][:, self.pelvis, :2] = self.m0['body_pos'][self.pelvis, :2]+self.base_off*self._offset_weight(self.substeps*self.dt)[:, None]
         if getattr(self, 'base_offz', None) is not None: self.mf['body_pos'][:, self.pelvis, 2] = self.m0['body_pos'][self.pelvis, 2]+self.base_offz*self._bz_weight(self.substeps*self.dt)
         skew = self.dr is not None and 'cmd_skew_s' in self.dr
-        X.holder_step(self, self.frame.clamp(max=self.nframes-1))
+        X.holder_step(self, self.frame.clamp(max=self.nframes-1)); X.servo_step(self, self.frame.clamp(max=self.nframes-1))   # (11-18 e) teacher alignment servo
+        Dm = getattr(self, 'x_dmask', None)
+        if Dm is not None:   # (11-18) direct student (vega_extras.direct_init): these worlds execute the absolute command env.x_dcmd
+            fresh = (self.episode_length_buf == 0)[:, None]; al = self.xcfg.get('direct_ema_alpha', self.xcfg.get('ema_alpha')) or 1.; dc = self.x_dcmd   # (11-18 f) own key: ema_alpha also smooths the teacher's residual
+            dc = X.direct_arm_freeze(self, dc)   # (11-19) arm_freeze: the student's arm command -> the reference arm command
+            self.x_dprev = torch.where(fresh, self.ctrl, self.x_dema)   # start of an episode: from the reset command
+            self.x_dema = torch.where(fresh, dc, al*dc+(1-al)*self.x_dema)
+            self.prev_a = (dc-self.x_dmu)/self.x_dsd
+            Dm = Dm[:, None]; self.x_rlast = torch.where(Dm, self.x_dprev, self.x_rlast); rapp = torch.where(Dm, self.x_dema, rapp)   # arm upsampling: prev -> current
+            hd_ = self.x_hdelta if getattr(self, 'x_hold', None) else torch.zeros_like(self.x_dema)
         base = self.frame*self.per_frame; X.begin_step(self, rapp, base); X.perturb_step(self)   # (11-12) hand pushes (extras.perturb)
         for s in range(self.substeps):
             self.x_sub = s
             if skew: cmd = self.cmd_sim[(base[:, None]+s-self.skew[:, None]*self.finger_mask).clamp(0, len(self.cmd_sim)-1), self.t_nu]+rapp
             else: cmd = self.cmd_sim[(base+s).clamp(max=len(self.cmd_sim)-1)]+rapp
+            if Dm is not None:
+                cd = self.x_dprev+(self.x_dema-self.x_dprev)*((s+1)/self.substeps); cd[:, self.x_arm] = (self.x_dema-hd_)[:, self.x_arm]   # arm: arm_command adds the
+                cmd = torch.where(Dm, cd, cmd)                                                                                             # delta back, upsamples
             if off is not None: cmd = cmd-off
             torch.clamp(X.arm_command(self, cmd), self.lo, self.hi, out=self.ctrl)
             self._launch(self.g_step); self._fold_stats(); X.substep_end(self)   # (11-09) accumulates the actuator torque for the torque-rate terms
@@ -456,6 +477,19 @@ class BimanualGpuEnv:
         O[:, :3, :3] = self.xmat[:, self.obj_id[s]]; O[:, :3, 3] = self.xpos[:, self.obj_id[s]]
         return W, O
 
+    def _track_w_windows(self):
+        """(11-20 i, user: lower the finger tracking in the hold phase so the contact rewards lead there) extras.track_w_windows: list of
+        {from_s, to_s, side (default right), <term>: factor, ...} with term in object / link / joint / wrist / world; the factor multiplies that
+        side's track_w weight at reference times in [from_s, to_s). Returns {(side, term): (nframes,) tensor}, cached."""
+        if getattr(self, 'x_tww', None) is None:
+            self.x_tww = {}; t_ = torch.as_tensor(np.asarray(self.times), dtype=torch.float32, device=self.device)
+            for w_ in (self.xcfg.get('track_w_windows') or []):
+                msk_ = (t_ >= float(w_['from_s'])) & (t_ < float(w_['to_s']))
+                for n_ in ('object', 'link', 'joint', 'wrist', 'world'):
+                    if n_ in w_:
+                        key_ = (w_.get('side', 'right'), n_); cur_ = self.x_tww.get(key_, torch.ones_like(t_)); self.x_tww[key_] = torch.where(msk_, cur_*float(w_[n_]), cur_)
+        return self.x_tww
+
     def _reward_and_termination(self, r):
         k = self.frame.clamp(max=self.nframes-1); reward = torch.zeros(self.num_envs, device=self.device)
         reasons = torch.zeros(self.num_envs, 2, dtype=torch.long, device=self.device)   # per object: 0 = ok, 1 + index into FAILURES
@@ -477,10 +511,15 @@ class BimanualGpuEnv:
             obj_t = torch.exp(-(axis_err.mean(1)/.04)**2); link_t = torch.exp(-(le/.025)**2).mean(1); joint_t = torch.exp(-(je/.1)**2).mean(1)
             wrist_t = 2*torch.exp(-(wp_/.03)**2-(wr_/.15)**2); world_t = 2*torch.exp(-(wpos/.04)**2-(wang/.3)**2)
             tw = self.xcfg['track_w']   # (11-09) configurable, defaults 8 / 1 / 1 / 1 / 1 = the original
-            reward += tw['object']*obj_t+tw['link']*link_t+tw['joint']*joint_t+tw['wrist']*wrist_t+tw['world']*world_t
+            g_ = lambda n_: float(tw.get(f'{n_}_{s}', tw[n_]))   # (11-20) per-side override, e.g. world_right: 0 (no pipette tracking in the world frame)
+            tww_ = self._track_w_windows()   # (11-20 i) time windows that scale tracking terms, extras.track_w_windows
+            e_ = {n_: (g_(n_)*tww_[(s, n_)][k] if (s, n_) in tww_ else g_(n_)) for n_ in ('object', 'link', 'joint', 'wrist', 'world')}
+            reward += e_['object']*obj_t+e_['link']*link_t+e_['joint']*joint_t+e_['wrist']*wrist_t+e_['world']*world_t
             v = self.qvel[:, self.obj_v[s]:self.obj_v[s]+6]
             conds = torch.stack([pos > .05, ang > math.pi/4, axis_err.max(1).values > .05, wpos > .05, wang > math.pi/4,
                                  O[:, 2, 3] < .06, v[:, :3].norm(dim=-1) > 10, v[:, 3:].norm(dim=-1) > 500, ~finite], 1)
+            if s == 'right' and getattr(self, 'x_relgate', None) is not None:   # (11-18) relative checks only once the hand is at the pipette
+                gr = self.x_relgate[k]; conds = torch.cat([conds[:, :3] & gr[:, None], conds[:, 3:]], 1)
             if s == 'right' and getattr(self, 'x_trelax', None) is not None:   # (11-17) regrasp window: only a real drop terminates
                 g = self.x_trelax[k]; drop = (O[:, :3, 3]-W[:, :3, 3]).norm(dim=-1) > float(self.xcfg['term_relax'].get('drop_dist_m', .16))
                 conds = torch.cat([torch.where(g, drop, conds[:, 0])[:, None], conds[:, 1:5] & ~g[:, None], conds[:, 5:]], 1)
@@ -488,7 +527,7 @@ class BimanualGpuEnv:
             reasons[:, j] = torch.where(any_, first+1, 0)
             info[s] = dict(object_position_m=wpos, object_orientation_rad=wang, relative_position_m=pos, axis_mean_m=axis_err.mean(1),
                            axis_max_m=axis_err.max(1).values, wrist_position_m=wp_, wrist_orientation_rad=wr_, link_rmse_m=le.pow(2).mean(1).sqrt(),
-                           terms=dict(object=obj_t, link=link_t, joint=joint_t, wrist=wrist_t, world=world_t))
+                           terms=dict(object=obj_t, link=link_t, joint=joint_t, wrist=wrist_t, world=world_t), tw_eff=e_)
         smooth = (r-self.prev).pow(2).sum(1)+(r-2*self.prev+self.prev2).pow(2).sum(1)
         depth = -self.qpos[:, self.pl_q]; dref = self.plunger_ref[k]
         pl_t = torch.where(self.press[k], self.cfg['plunger_weight']*torch.exp(-((depth-dref)/self.cfg['plunger_sigma'])**2), torch.zeros_like(depth))
@@ -497,6 +536,17 @@ class BimanualGpuEnv:
         info['reward_unscaled'] = reward
         info['plunger_depth_m'] = depth; info['plunger_ref_m'] = dref; info['plunger_term'] = pl_t; info['smooth'] = smooth
         fail = (reasons > 0).any(1)
+        gh_ = getattr(self, 'x_gate_hold', None)
+        G_ = getattr(self, 'x_gate', None)
+        if G_ is not None and G_.get('align_w') and G_.get('g_descent') is not None:   # (11-18 d) dense pre-descent alignment shaping: from align_from_s
+            kk_ = self.frame; win_ = (kk_ >= G_['align_from']) & (kk_ < G_['g_descent'])   # to the gate, minus align_w x the TRUE alignment error in tolerances
+            if bool(win_.any()):
+                X.gate_aligned(self, 'right', G_['g_descent']); pe_, ae_ = self.x_gate_err
+                reward = reward-torch.where(win_, G_['align_w']*(pe_/G_['tol_m']+ae_/G_['tol_rad']).clamp(max=20.), torch.zeros_like(reward))
+        if gh_ is not None and bool(gh_.any()):   # (11-18) while the gate holds the clock: no tracking reward (no stalling), only minus the
+            if G_.get('g_descent') is not None: X.gate_aligned(self, 'right', G_['g_descent'])   # alignment error in tolerances (at tol: -2): align, then the clock
+            pe_, ae_ = self.x_gate_err                                                                 # moves on
+            reward = torch.where(gh_, -(pe_/G_['tol_m']+ae_/G_['tol_rad']).clamp(max=20.), reward)
         reward = torch.nan_to_num(reward, 0., 0., 0.)
         if self.reward_scale != 1.: reward = reward*self.reward_scale
         return reward, fail, reasons, info

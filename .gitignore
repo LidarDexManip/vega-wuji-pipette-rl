@@ -31,3 +31,7 @@ videos/
 *.eps
 *.log
 logs/
+
+tracker/
+tasks/
+results/

@@ -29,11 +29,18 @@ if a0.student:
     ck = torch.load(a0.student, map_location=env.device); DX = env.x_depth
     stu = D.StudentCNN(ck['nin'], ck['nout'], ck['hidden'], (DX['H'], DX['W']), aux=ck.get('aux', 0)).to(env.device) if ck.get('depth') else D.Student(ck['nin'], ck['nout'], ck['hidden']).to(env.device)
     stu.load_state_dict(ck['student']); stu.eval(); pol = (lambda: stu(env.obs_actor, env.x_depth['obs'])) if ck.get('depth') else (lambda: stu(env.obs_actor))
+    if ck.get('direct'):   # (11-18) direct student: every world executes its absolute command and its own "go" at the descent gate
+        assert getattr(env, 'x_direct', False), 'config must have extras.student.direct'
+        mu_, sd_ = ck['cmd_mu'].to(env.device), ck['cmd_sd'].to(env.device); pol_d = pol; env.x_dmask = torch.ones(N, dtype=torch.bool, device=env.device)
+        def pol():
+            y = pol_d(); env.x_dcmd = mu_+sd_*y[:, :env.nu]; env.x_go = y[:, env.nu] > 0; return torch.zeros(N, env.nu, device=env.device)
 dev = env.device; env.reset_envs(torch.ones(N, dtype=torch.bool, device=dev), frames=torch.full((N,), a0.start_frame, dtype=torch.long, device=dev)); env._launch(env.g_kin); env.obs = env._observe()
 if env.obs_mode == 'deployable': env._observe_deployable()
 nfr = env.nframes; qs = [env.qpos.cpu().numpy().copy()]; fr = [env.frame.cpu().numpy().copy()]; ff = np.full(N, -1)
 vs = [env.qvel.cpu().numpy().copy()]; cs = [env.ctrl.cpu().numpy().copy()]
-for i in range((nfr-1)//env.frame_step):
+G_ = (C['extras'].get('event_gate') or {}); n_steps = (nfr-1)//env.frame_step+int(round(float(G_.get('cap_s', 0.))/.02))*len(G_.get('events', []))   # (11-18) gate holds
+for i in range(n_steps):
+    if bool((env.frame >= nfr-1).all()): break
     with torch.inference_mode():
         act = pol().clamp(-1, 1) if pol else torch.zeros(N, env.nu, device=dev); _, _, _, ex = env.step(act)
     f = (ex['reasons'] > 0).any(1).cpu().numpy(); k = env.frame.cpu().numpy(); ff = np.where((ff < 0) & f, k, ff)

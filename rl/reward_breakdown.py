@@ -42,8 +42,9 @@ for i in range(a0.steps):
     info = ex['info']; parts = []
     for s in ('right', 'left'):
         T = info[s]['terms']
-        for n_, w_ in env.xcfg['track_w'].items():   # (11-09) the env's weights (default 8 / 1 / 1 / 1 / 1; wrist / world carry their own x2)
-            v = w_*T[n_]; add(f'track_{s}_{n_}', v); parts.append(v)
+        tw_ = env.xcfg['track_w']
+        for n_ in ('object', 'link', 'joint', 'wrist', 'world'):   # (11-09) the env's weights (default 8 / 1 / 1 / 1 / 1; wrist / world carry their own x2); (11-20) per-side <name>_<side> overrides
+            v = info[s]['tw_eff'][n_]*T[n_] if 'tw_eff' in info[s] else float(tw_.get(f'{n_}_{s}', tw_[n_]))*T[n_]; add(f'track_{s}_{n_}', v); parts.append(v)   # (11-20 i) effective (time-windowed) weights
     v = -.01*info['smooth']; add('env_smooth (-0.01 x)', v); parts.append(v)
     v = info['plunger_term']; add('env_plunger', v); parts.append(v)
     for key, val in info['extras'].items():

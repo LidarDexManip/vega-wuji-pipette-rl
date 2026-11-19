@@ -20,7 +20,7 @@ if ex.get('holder'): ex['holder'] = {**ex['holder'], 'stand_xy_mm': 0, 'stand_ya
 dr = None
 if a0.dr_center:
     d0 = json.loads(rel(C['dr']).read_text()) if isinstance(C.get('dr'), str) else C.get('dr')
-    dr = {k: ([.5*(v[0]+v[1])]*2 if isinstance(v, (list, tuple)) and len(v) == 2 else 0.) for k, v in d0.items() if not k.endswith('_frac')}
+    dr = {k: ([.5*(v[0]+v[1])]*2 if isinstance(v, (list, tuple)) and len(v) == 2 else 0.) for k, v in d0.items() if not k.endswith('_frac') and not isinstance(v, dict)}   # (11-19) dict entries (obs_stale) only touch observations: off
 kw = dict(dr=dr, extras=ex, reward_scale=C.get('reward_scale', .01))
 for k in ('group_scale', 'thumb_press_scale', 'plunger_weight'):
     if C.get(k) is not None: kw[k] = C[k]
