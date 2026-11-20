@@ -1015,6 +1015,22 @@ def student_parts(env):
 # phase margin with the arm lag). Frozen from the gate, scaled by the holder weight (fades after the lift like the re-anchoring). Starts at or after
 # from_s begin at the open-loop value (true minus measured re-anchoring). It runs in every world; it is APPLIED only where the teacher drives
 # (x_dmask False / None) and it is part of the teacher's absolute command (direct_label: x_servo_lab), so a direct student learns the alignment.
+# (11-20) The same for a RESIDUAL student with extras.student.residual_go (worlds in env.x_smask): no servo applied there, its label is the
+# teacher's action plus the servo in action units (residual_label), and its own "go" decides the descent gate.
+def _student_mask(env):
+    """worlds a student drives WITHOUT the privileged servo / gate truth: direct (x_dmask) or residual-go (x_smask); None = all teacher"""
+    dm = getattr(env, 'x_dmask', None)
+    return dm if dm is not None else getattr(env, 'x_smask', None)
+
+
+def residual_label(env, a):
+    """(11-20) residual student label: the teacher's action a plus the alignment servo it gets on top (x_servo_lab, rad) in action units
+    (/ group scale), clamped to [-1, 1]; the student's worlds run without the servo. The servo fades with the holder weight after the lift."""
+    lab = a.clamp(-1, 1).clone(); sl = getattr(env, 'x_servo_lab', None)
+    if sl is not None: lab = lab+sl/env.scale
+    return lab.clamp(-1, 1)
+
+
 def _servo_cfg(env):
     if not hasattr(env, 'x_servo'):
         S = env.xcfg.get('align_servo'); env.x_servo = None
@@ -1028,7 +1044,7 @@ def _servo_cfg(env):
 
 
 def _servo_apply(env, k):
-    w = env.x_hold['stand']['w'][k]; env.x_servo_lab = env.x_servo_dq*w[:, None]; dm = getattr(env, 'x_dmask', None)
+    w = env.x_hold['stand']['w'][k]; env.x_servo_lab = env.x_servo_dq*w[:, None]; dm = _student_mask(env)
     env.x_servo_app = env.x_servo_lab if dm is None else torch.where(dm[:, None], torch.zeros_like(env.x_servo_lab), env.x_servo_lab)
 
 
@@ -1057,7 +1073,7 @@ def servo_step(env, k):
         w_ = win.nonzero().squeeze(-1); cols = env.x_arm_side['R']; kw = k[w_]
         Wt = holder_T(env, 'stand', kw, w_)@env.W_ref['right'][kw]; W = env._poses('right')[0][w_]
         row = (kw*env.per_frame).clamp(max=len(env.cmd_sim)-1); qs = (env.cmd_sim[row]+env.x_hdelta[w_]+env.x_servo_lab[w_])[:, cols]
-        dm = getattr(env, 'x_dmask', None)
+        dm = _student_mask(env)   # (11-20) residual-go worlds too: integrate the LABEL's predicted wrist error, not the student's own
         if S['pred'] and dm is not None and bool(dm[w_].any()) and getattr(env, 'x_tick', None) is not None:
             # (11-18 f) direct-student worlds: the student does not execute this label, so integrating ITS wrist error wound the label up (32 mm
             # median at the gate vs 7 mm when the teacher drives). Use the wrist pose the LABEL command would give instead: this world's
@@ -1147,7 +1163,7 @@ def frame_advance(env):
         cross = (env.frame < g) & (env.frame+step >= g)
         if not bool(cross.any()): continue
         ok = gate_aligned(env, side, g)
-        go = getattr(env, 'x_go', None); dm = getattr(env, 'x_dmask', None)
+        go = getattr(env, 'x_go', None); dm = _student_mask(env)
         if kind == 'descent' and go is not None and dm is not None: ok = torch.where(dm, go, ok)   # (11-18) student-driven worlds: the student's own "go"
         hold = cross & ~ok & (G['held'][:, e] < G['cap'])
         G['held'][:, e] += hold.long(); inc = torch.where(hold, (g-1-env.frame).clamp(min=0), inc); env.x_gate_hold |= hold

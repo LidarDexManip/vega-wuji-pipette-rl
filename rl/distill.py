@@ -120,7 +120,10 @@ def main():
     push_scale = lambda it: P0 if not PR else P0*min(1., max(0., (it-float(PR[0]))/max(1., float(PR[1])-float(PR[0]))))
     if getattr(env, 'x_pert', None) is not None: env.x_pert['scale'] = push_scale(state['it'])
     nin = int(env.obs_actor.shape[1]); DX = getattr(env, 'x_depth', None)
-    DIRECT = bool(getattr(env, 'x_direct', False)); nu = env.nu; nout = nu+(1 if DIRECT else 0)   # (11-18) direct: absolute command (normalised) + "go" logit
+    DIRECT = bool(getattr(env, 'x_direct', False)); nu = env.nu   # (11-18) direct: absolute command (normalised) + "go" logit
+    # (11-20, user: "not absolute, do relative student training") residual student with its own "go" (extras.student.residual_go): outputs the
+    # residual in the teacher's action units; its worlds (env.x_smask) run without the privileged servo / gate truth; label = vega_extras.residual_label
+    RGO = (not DIRECT) and bool((C['extras'].get('student') or {}).get('residual_go')); NEWP = DIRECT or RGO; nout = nu+(1 if NEWP else 0)
     if DX is None: stu = Student(nin, nout, C['hidden']).to(dev)
     else:
         aux_w = float(DX['cfg'].get('aux_inhand', 0.)); naux = 36 if aux_w > 0 else 0
@@ -130,14 +133,19 @@ def main():
         for k_, v_ in src.items():
             if k_.startswith(tuple(C.get('warm_prefixes', ['enc.', 'proj.', 'aux.']))) and k_ in sd_ and sd_[k_].shape == v_.shape: sd_[k_].copy_(v_); got.append(k_)
         stu.load_state_dict(sd_); print('warm start from', C['warm_from'], got, flush=True)
-    if DIRECT:
-        assert DX is not None, 'direct student: wrist depth expected'
-        dmu, dsd = env.x_dmu, env.x_dsd; w_act = (dsd/env.scale)**2   # loss in residual units (same weighting as the residual student)
+    if NEWP:
+        assert DX is not None, 'direct / residual-go student: wrist depth expected'
+        if DIRECT: dmu, dsd = env.x_dmu, env.x_dsd; w_act = (dsd/env.scale)**2   # loss in residual units (same weighting as the residual student)
+        else: w_act = torch.ones(nu, device=dev)   # residual-go: the outputs ARE residual units
         for pre_, mul_ in (C.get('act_w_mult') or {}).items():   # (11-18 f) e.g. {"L_arm": 0.16}: the idle left arm (scale 0.04) took 27-83 % of the loss
             w_act[[i_ for i_, n_ in enumerate(env.action_names) if n_.startswith(pre_)]] *= float(mul_)
         w_act = w_act/w_act.mean()
         smooth_w = float(C.get('smooth_w', 0.)); smooth_frac = float(C.get('smooth_frac', .25))   # (11-18 f) temporal smoothness: (y_t - y_t-1) should match (label_t - label_t-1) (student shook 10-20x the teacher)
         go_w = float(C.get('go_w', 1.)); bce = nn.BCEWithLogitsLoss(reduction='sum')
+        # (11-20) phase_w = [{from_s, to_s, w}]: action-loss weight per sample by the reference time it was collected at (e.g. the approach /
+        # descent / grasp, where crooked grasps start); the minibatch's weighted loss is divided by its mean weight (same loss scale)
+        PW = torch.ones(env.nframes, device=dev)
+        for pw_ in (C.get('phase_w') or []): PW[int(round(float(pw_['from_s'])*100)):int(round(float(pw_['to_s'])*100))] = float(pw_['w'])
     if NW > 1:
         for t_ in stu.state_dict().values(): dist.broadcast(t_, 0)
     opt = torch.optim.Adam(stu.parameters(), lr=C['lr'])
@@ -156,7 +164,9 @@ def main():
                actor_layout=env.actor_layout, teacher_obs_dim=int(env.obs.shape[1]))
     T = C['steps_per_iter']; B = C['buffer_iters']*T*N
     bx = torch.zeros(B, nin, device=dev); by = torch.zeros(B, env.nu, device=dev); filled = 0; ptr = 0
-    if DIRECT: bgo = torch.zeros(B, device=dev); bgat = torch.zeros(B, dtype=torch.bool, device=dev); env.x_dmask = torch.zeros(N, dtype=torch.bool, device=dev); bpv = torch.zeros(B, dtype=torch.bool, device=dev)
+    if NEWP: bgo = torch.zeros(B, device=dev); bgat = torch.zeros(B, dtype=torch.bool, device=dev); bpv = torch.zeros(B, dtype=torch.bool, device=dev); bfr = torch.zeros(B, dtype=torch.long, device=dev)
+    if DIRECT: env.x_dmask = torch.zeros(N, dtype=torch.bool, device=dev)
+    if RGO: env.x_smask = torch.zeros(N, dtype=torch.bool, device=dev)
     if DX is not None:
         bimg = torch.zeros(B, 2, DX['H'], DX['W'], dtype=torch.int16, device=dev); baux = torch.zeros(B, 36, device=dev) if naux else None
     stu_act = (lambda: stu(env.obs_actor.clone())) if DX is None else (lambda: stu(env.obs_actor.clone(), DX['obs']))
@@ -177,7 +187,10 @@ def main():
         torch.save({'student': stu.state_dict(), 'opt': opt.state_dict(), 'nin': nin, 'nout': nout, 'hidden': C['hidden'], 'it': state['it'], 'depth': DX['cfg'] if DX is not None else None, 'aux': naux if DX is not None else 0,
                     'actor_layout': env.actor_layout, 'action_names': list(env.action_names),
                     **({'direct': True, 'cmd_mu': dmu.cpu(), 'cmd_sd': dsd.cpu(), 'go_output': nu, 'prev_out': not getattr(env, 'x_noprev', False), 'pipette_xyz_nominal': getattr(env, 'x_pxyz_nominal', None),
-                        'ema_alpha': env.xcfg.get('direct_ema_alpha', env.xcfg.get('ema_alpha')), 'speed_cap': env.xcfg.get('speed_cap'), 'event_gate': env.xcfg.get('event_gate')} if DIRECT else {})}, tmp); os.replace(tmp, path)
+                        'ema_alpha': env.xcfg.get('direct_ema_alpha', env.xcfg.get('ema_alpha')), 'speed_cap': env.xcfg.get('speed_cap'), 'event_gate': env.xcfg.get('event_gate')} if DIRECT else {}),
+                    **({'residual_go': True, 'go_output': nu, 'action_scale': env.scale.cpu(), 'thumb_press_scale': getattr(env, 'thumb_press_scale', None),
+                        'prev_out': not getattr(env, 'x_noprev', False), 'pipette_xyz_nominal': getattr(env, 'x_pxyz_nominal', None), 'ema_alpha': env.xcfg.get('ema_alpha'),
+                        'speed_cap': env.xcfg.get('speed_cap'), 'event_gate': env.xcfg.get('event_gate'), 'arm_freeze': env.xcfg.get('arm_freeze')} if RGO else {})}, tmp); os.replace(tmp, path)
 
     try:
         while keep_going():
@@ -188,9 +201,15 @@ def main():
                     if DIRECT:   # label = the teacher's command as an absolute one; student-driven worlds execute the student's absolute command / go
                         lab = (X.direct_label(env, at)-dmu)/dsd; ys = stu_act(); gat, glab = X.gate_label(env)
                         env.x_dmask = ~use_t; env.x_dcmd = dmu+dsd*torch.where(use_t[:, None], lab, ys[:, :nu]); env.x_go = ys[:, nu] > 0
-                        bx[i] = xs; by[i] = lab; bpv[i] = (env.episode_length_buf > 0) & (filled >= N)   # slot i-N holds this world's previous step
+                        bx[i] = xs; by[i] = lab; bpv[i] = (env.episode_length_buf > 0) & (filled >= N); bfr[i] = env.frame.clamp(max=env.nframes-1)   # slot i-N holds this world's previous step
                         if gat is not None: bgo[i] = glab.float(); bgat[i] = gat
                         as_, at_cmp = ys[:, :nu], lab
+                    elif RGO:   # (11-20) residual + own "go": the student's worlds execute its residual without the servo; label adds the servo
+                        lab = X.residual_label(env, at); ys = stu_act(); gat, glab = X.gate_label(env)
+                        env.x_smask = ~use_t; env.x_go = ys[:, nu] > 0
+                        bx[i] = xs; by[i] = lab; bpv[i] = (env.episode_length_buf > 0) & (filled >= N); bfr[i] = env.frame.clamp(max=env.nframes-1)
+                        if gat is not None: bgo[i] = glab.float(); bgat[i] = gat
+                        as_, at_cmp = ys[:, :nu].clamp(-1, 1), lab
                     else:
                         as_ = stu_act().clamp(-1, 1); at_cmp = at
                         bx[i] = xs; by[i] = at
@@ -198,7 +217,7 @@ def main():
                         bimg[i] = DX['obs']
                         if naux: baux[i] = X.inhand_targets(env)/.05
                     ptr = (ptr+N) % B; filled = min(B, filled+N)
-                    err += float((((as_-at_cmp)**2)*(w_act if DIRECT else 1.)).mean())
+                    err += float((((as_-at_cmp)**2)*(w_act if NEWP else 1.)).mean())
                     _, _, done, ex = env.step(torch.where(use_t[:, None], at, as_))
                     d = done.nonzero().squeeze(-1)
                     if len(d):
@@ -212,7 +231,7 @@ def main():
             go_losses = []; smooth_losses = []
             for j in range(nmb):
                 idx = perm[j*mb:(j+1)*mb]
-                if DIRECT:   # weighted MSE on the normalised absolute command (= residual units) + BCE of "go" on the samples at the descent gate
+                if NEWP:   # weighted MSE on the normalised absolute command (= residual units) / the residual + BCE of "go" at the descent gate
                     sub = idx[:max(1, int(len(idx)*smooth_frac))] if smooth_w > 0 else idx[:0]   # (11-18 f) a fraction of the minibatch (memory: the pair doubles the CNN batch)
                     pv = sub[bpv[sub]]; pp = (pv-N) % B; n0 = len(idx)   # one forward for both (DDP)
                     xi, ii = (torch.cat([bx[idx], bx[pp]]), torch.cat([bimg[idx], bimg[pp]])) if len(pv) else (bx[idx], bimg[idx])
@@ -220,7 +239,7 @@ def main():
                     if len(pv):
                         yp = y[n0:]; y = y[:n0]; ya = ya[:n0] if ya is not None else None; yc = y[:len(sub)][bpv[sub]]
                         ls_ = (w_act*((yc[:, :nu]-yp[:, :nu])-(by[pv]-by[pp]))**2).mean(); smooth_losses.append(float(ls_))
-                    loss = (w_act*(y[:, :nu]-by[idx])**2).mean()
+                    wph = PW[bfr[idx]]; loss = (wph[:, None]*w_act*(y[:, :nu]-by[idx])**2).mean()/wph.mean()   # (11-20) phase_w (all 1 by default)
                     if len(pv): loss = loss+smooth_w*ls_
                     if ya is not None: la = ((ya-baux[idx])**2).mean(); loss = loss+aux_w*la; aux_losses.append(float(la))
                     ga = bgat[idx]
@@ -238,8 +257,8 @@ def main():
                    'rollout_mse_student_vs_teacher': err/(T*NW), 'episodes_student': n_s, 'success_student': succ_s/max(1, n_s), 'episodes_teacher': n_t,
                    'success_teacher': succ_t/max(1, n_t), 'steps_per_s': round(T*N*NW/(time.time()-t0)), 'success_fraction_all (rank 0)': st.get('success_fraction'),
                    'aux_loss': la_/nla if nla else None, 'gpus': NW, 'minibatches': nmb}
-            if DIRECT: row['go_loss (rank 0)'] = sum(go_losses)/len(go_losses) if go_losses else None
-            if DIRECT and smooth_losses: row['smooth_loss (rank 0)'] = sum(smooth_losses)/len(smooth_losses)
+            if NEWP: row['go_loss (rank 0)'] = sum(go_losses)/len(go_losses) if go_losses else None
+            if NEWP and smooth_losses: row['smooth_loss (rank 0)'] = sum(smooth_losses)/len(smooth_losses)
             if getattr(env, 'x_pert', None) is not None: row.update(X.perturb_stats(env)); env.x_pert['scale'] = push_scale(state['it'])   # (11-12)
             if not torch.isfinite(torch.as_tensor(row['loss'])): rc, reason = 3, 'non-finite loss'; break
             if main0: flog.write(json.dumps(row)+'\n'); flog.flush(); print(json.dumps(row), flush=True)
